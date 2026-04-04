@@ -20,8 +20,8 @@ A frictionless tool to instantly export a formatted class roster from the Canvas
 ## Team
 | Role | Name |
 |------|------|
-| Developer | TBD |
-| Developer | TBD |
+| Developer | James Lake |
+| Developer | Magnus Songhurst |
 
 ## Setup
 _To be added once development begins._

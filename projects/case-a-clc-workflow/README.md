@@ -17,8 +17,8 @@ Automate data extraction from Canvas and generate a centralized "Single Source o
 ## Team
 | Role | Name |
 |------|------|
-| Developer | TBD |
-| Developer | TBD |
+| Developer | Luke Ryan |
+| Developer | Jack Weinberg |
 
 ## Setup
 _To be added once development begins._

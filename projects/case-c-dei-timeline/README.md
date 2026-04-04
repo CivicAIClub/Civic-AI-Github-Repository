@@ -23,7 +23,7 @@ Build a digital interactive timeline and "time capsule" website featuring real v
 | Role | Name |
 |------|------|
 | Developer | Zahir Williams |
-| Developer | TBD |
+| Developer | Keke Li |
 
 ## Setup
 _To be added once development begins._

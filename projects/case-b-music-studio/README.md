@@ -19,8 +19,8 @@ Build a centralized "Resource Hub" for reusable lesson materials and a "Music St
 ## Team
 | Role | Name |
 |------|------|
-| Developer | TBD |
-| Developer | TBD |
+| Developer | Serena Zhang |
+| Developer | JT Gannon |
 
 ## Setup
 _To be added once development begins._
