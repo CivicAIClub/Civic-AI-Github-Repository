@@ -1,32 +1,36 @@
-# Case C: DEI Interactive Timeline & Time Capsule
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Client
-Dr. McCarter (DEI Office)
+## Getting Started
 
-## Problem / Vision
-The DEI office wants to make Pomfret's history curriculum more accurate and create an interactive, high-tech experience for campus visitors and MLK Day events.
+First, run the development server:
 
-## Goal
-Build a digital interactive timeline and "time capsule" website featuring real voices of current students, alumni, and past chapel speakers (pulling audio and text from YouTube archives). Dr. McCarter will provide diversity timeline data via Padlet.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-## Alternative Concepts Under Consideration
-- QR-code monument tours
-- AI "Did You Know" videos
-- "Unlearning Miseducation" micro-lessons (Columbus Day, Juneteenth, Redlining, Indigenous boarding schools, GI Bill)
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Important Constraints
-- **AI hallucination risk is high** for historical/cultural content. All AI-generated content must go through a rigorous fact-checking and approval process before publication.
-- **Cultural awareness rules:** AI image generation must not alter authentic skin tones or hair textures.
-- No content goes live without client sign-off.
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Team
-| Role | Name |
-|------|------|
-| Developer | Zahir Williams |
-| Developer | Keke Li |
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Setup
-_To be added once development begins._
+## Learn More
 
-## Status
-🟡 Discovery phase
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
