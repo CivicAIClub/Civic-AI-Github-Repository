@@ -1,0 +1,27 @@
+---
+description: Civic AI Club onboarding and workflow reference for all developer conversations
+alwaysApply: true
+---
+
+# Civic AI Club Context
+
+Always reference the onboarding guide at `docs/CivicAIDevelopersOnboarding.md` when helping developers with:
+
+- Git commands, branching, or pull request workflows
+- Repository structure or where to put files
+- Project setup or getting started questions
+- Commit message conventions
+- Merge conflicts or common Git issues
+- Team assignments and folder ownership
+
+Key rules from the guide:
+- **Never push directly to `main`.** Always use a branch (`case-X/feature-name`) and a Pull Request.
+- **Stay in your folder.** Each team only edits files inside their own `projects/case-X/` directory.
+- **Never commit secrets.** No API keys, `.env` files, or tokens in Git.
+- Branch naming: `case-a/...`, `case-b/...`, `case-c/...`, `case-d/...`
+
+Team assignments:
+- Case A (CLC Workflow): Luke Ryan, Jack Weinberg → `projects/case-a-clc-workflow/`
+- Case B (Music Studio): Serena Zhang, JT Gannon → `projects/case-b-music-studio/`
+- Case C (DEI Timeline): Zahir Williams, Keke Li → `projects/case-c-dei-timeline/`
+- Case D (Roster Export): James Lake, Magnus Songhurst → `projects/case-d-roster-export/`
