@@ -1,32 +1,99 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { mockStudents } from "../data/mockStudents";
+import type { SheetStudentProfile } from "../api/mapSheetStudentResponse";
+import { getAllStudents } from "../api/appsScriptStudent";
+import { sheetProfileToStudent } from "../api/studentFromSheet";
+import {
+  computeProfileUpdatesSinceLastVisit,
+  loadProfileSnapshots,
+  saveProfileSnapshots,
+  type DashboardProfileUpdate,
+} from "../lib/studentProfileSnapshots";
+import type { Student } from "../types";
+
+function clipText(s: string, max = 160): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max)}…`;
+}
 
 export function Dashboard() {
   const [query, setQuery] = useState("");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [recentUpdates, setRecentUpdates] = useState<{
+    isBaselineVisit: boolean;
+    updates: DashboardProfileUpdate[];
+  } | null>(null);
+  const [rosterLoadStatus, setRosterLoadStatus] = useState<
+    "idle" | "ok" | "error"
+  >("idle");
+
+  // Same roster as the Students page (Apps Script ?action=list) for count + quick search.
+  // Snapshots are saved here only so “what changed” means since your last Dashboard visit.
+  useEffect(() => {
+    const ac = new AbortController();
+    getAllStudents({ signal: ac.signal })
+      .then((profiles: SheetStudentProfile[]) => {
+        const previous = loadProfileSnapshots();
+        const { isBaselineVisit, updates } =
+          computeProfileUpdatesSinceLastVisit(previous, profiles);
+
+        setRecentUpdates({
+          isBaselineVisit,
+          updates: updates.slice(0, 12),
+        });
+
+        saveProfileSnapshots(profiles);
+
+        const list: Student[] = [];
+        for (const p of profiles) {
+          const s = sheetProfileToStudent(p);
+          if (s) list.push(s);
+        }
+        list.sort((a, b) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+        );
+        setStudents(list);
+        setLoadError(null);
+        setRosterLoadStatus("ok");
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setStudents([]);
+        setRecentUpdates(null);
+        setLoadError(
+          err instanceof Error ? err.message : "Could not load roster."
+        );
+        setRosterLoadStatus("error");
+      });
+    return () => ac.abort();
+  }, []);
 
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return mockStudents
+    return students
       .filter((s) => s.name.toLowerCase().includes(q))
       .slice(0, 8);
-  }, [query]);
+  }, [query, students]);
 
   return (
     <div className="page">
       <header className="page-header">
         <h1>Dashboard</h1>
         <p className="page-header__lede">
-          Quick overview for lessons — data is sample-only for now.
+          Quick overview for lessons — roster comes from your Google Sheet.
         </p>
       </header>
 
       <div className="grid-dashboard">
         <section className="card card--stat">
           <h2 className="card__title">Total students</h2>
-          <p className="stat-value">{mockStudents.length}</p>
-          <p className="muted">Active roster (mock)</p>
+          <p className="stat-value">{loadError ? "—" : students.length}</p>
+          <p className="muted">
+            {loadError ? loadError : "Loaded from your Google Sheet (roster)"}
+          </p>
         </section>
 
         <section className="card">
@@ -43,7 +110,13 @@ export function Dashboard() {
             onChange={(e) => setQuery(e.target.value)}
             autoComplete="off"
           />
-          {query.trim() && (
+          {loadError && (
+            <p className="muted empty-state">
+              Open the Students page for details, or add <code>?action=list</code>{" "}
+              to your Apps Script (see <code>src/api/appsScriptStudent.ts</code>).
+            </p>
+          )}
+          {query.trim() && !loadError && (
             <ul className="search-results">
               {searchResults.length === 0 && (
                 <li className="muted">No matches</li>
@@ -65,16 +138,94 @@ export function Dashboard() {
           )}
         </section>
 
-        <section className="card span-2 placeholder-card">
+        <section className="card span-2">
           <h2 className="card__title">Recent student updates</h2>
-          <p className="placeholder-text">
-            Form submissions and profile changes will show here after Google
-            Forms and Sheets are connected.
+          <p className="muted profile-updates-intro">
+            Compared to the last time you opened this dashboard (saved in this
+            browser). Edit the Sheet or form, refresh the dashboard, and changes
+            appear here.
           </p>
-          <p className="muted">
-            For now, open the Students page to view and edit mock profiles
-            inline during lessons.
-          </p>
+          {rosterLoadStatus === "idle" && !loadError && (
+            <p className="muted">Loading roster and update summary…</p>
+          )}
+          {loadError && (
+            <p className="placeholder-text">Load the roster to see updates.</p>
+          )}
+          {rosterLoadStatus === "ok" &&
+            recentUpdates?.isBaselineVisit && (
+            <p className="placeholder-text">
+              Baseline saved for each student. Open the dashboard again after your
+              students submit new form responses (or you edit the Sheet) to see
+              what changed.
+            </p>
+          )}
+          {rosterLoadStatus === "ok" &&
+            recentUpdates &&
+            !recentUpdates.isBaselineVisit &&
+            recentUpdates.updates.length === 0 && (
+              <p className="placeholder-text">
+                No profile fields changed since your last visit.
+              </p>
+            )}
+          {rosterLoadStatus === "ok" &&
+            recentUpdates &&
+            !recentUpdates.isBaselineVisit &&
+            recentUpdates.updates.length > 0 && (
+              <ul className="profile-updates-list">
+                {recentUpdates.updates.map((item) => (
+                  <li key={item.profile.email} className="profile-updates-list__item">
+                    {item.kind === "new_on_roster" ? (
+                      <>
+                        <p className="profile-updates-list__title">
+                          <Link
+                            to={`/students?student=${encodeURIComponent(item.profile.email)}`}
+                            className="link-block"
+                          >
+                            <span className="strong">New on roster</span>
+                            <span className="muted">
+                              {" "}
+                              — {item.profile.name || item.profile.email}
+                            </span>
+                          </Link>
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="profile-updates-list__title">
+                          <Link
+                            to={`/students?student=${encodeURIComponent(item.profile.email)}`}
+                            className="link-block"
+                          >
+                            <span className="strong">
+                              {item.profile.name || item.profile.email}
+                            </span>
+                            <span className="muted"> · profile changes</span>
+                          </Link>
+                        </p>
+                        <ul className="profile-updates-list__changes">
+                          {item.changes.map((c) => (
+                            <li key={c.label}>
+                              <span className="profile-updates-list__field">
+                                {c.label}
+                              </span>
+                              <span className="muted profile-updates-list__delta">
+                                <span className="profile-updates-list__before">
+                                  {clipText(c.before)}
+                                </span>
+                                {" → "}
+                                <span className="profile-updates-list__after">
+                                  {clipText(c.after)}
+                                </span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
         </section>
 
         <section className="card span-2 placeholder-card">

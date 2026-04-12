@@ -1,14 +1,26 @@
 export type Student = {
   id: string;
   name: string;
+  /** Google Form "Date" when present */
+  formDate: string;
   instrument: string;
   currentLevel: string;
   lastUpdated: string;
   goals: string;
   musicExperience: string;
-  pastInstruments: string[];
-  musicInterests: string[];
+  /** "What genre of music do you want to learn?" */
+  genre: string;
+  /** "Any specific song you want to learn?" */
+  specificSong: string;
+  /** "Any updates? Questions?" */
+  studentUpdates: string;
+  /** Local / session edits until a backend exists */
   teacherNotes: string;
+  /** When set, the profile panel loads this row from Google Apps Script by email */
+  sheetEmail?: string;
+  theory?: string;
+  /** From sheet column "Email Address" when loaded via Apps Script */
+  contactEmail?: string;
 };
 
 export type ResourceCategory =
