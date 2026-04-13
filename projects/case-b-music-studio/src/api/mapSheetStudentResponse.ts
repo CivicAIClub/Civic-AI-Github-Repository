@@ -17,9 +17,23 @@ export type SheetStudentProfile = {
   theory: string;
   email: string;
   studentUpdates: string;
+  /** Raw cell from "Lesson Availability/ Preferable Time" (often comma-separated) */
+  availabilityRaw: string;
   /** ISO when parsable; otherwise raw Timestamp cell */
   lastUpdated: string;
 };
+
+/** Canonical Apps Script / Sheet column title for lesson availability (exact string). */
+export const LESSON_AVAILABILITY_SHEET_KEY =
+  "Lesson Availability/ Preferable Time" as const;
+
+const LESSON_AVAILABILITY_KEY_CANDIDATES: readonly string[] = [
+  LESSON_AVAILABILITY_SHEET_KEY,
+  "Lesson Availability / Preferable Time",
+  "Lesson Availability/Preferable Time",
+  "Lesson Availability/ Preferred Time",
+  "Lesson Availability / Preferred Time",
+];
 
 /** Exact Google Form / Sheet column titles */
 const SHEET_KEYS = {
@@ -34,6 +48,7 @@ const SHEET_KEYS = {
   theory: "How much do you know about Music Theory?",
   email: "Email Address",
   studentUpdates: "Any updates? Questions?",
+  availability: LESSON_AVAILABILITY_SHEET_KEY,
   timestamp: "Timestamp",
 } as const;
 
@@ -41,6 +56,73 @@ function cell(raw: Record<string, unknown>, key: string): string {
   const v = raw[key];
   if (v == null) return "";
   return String(v).trim();
+}
+
+/**
+ * Sheet / Apps Script cells are sometimes arrays (checkbox columns) instead of
+ * a single comma-separated string.
+ */
+function coerceSheetTextValue(v: unknown): string {
+  if (v == null) return "";
+  if (Array.isArray(v)) {
+    return v
+      .map((x) => (x == null ? "" : String(x).trim()))
+      .filter(Boolean)
+      .join(", ");
+  }
+  return String(v).trim();
+}
+
+/** Normalize header text so spacing around "/" and between words still matches. */
+function normalizeSheetHeaderKey(key: string): string {
+  return key
+    .trim()
+    .toLowerCase()
+    .replace(/\uFF0F/g, "/") // fullwidth solidus (common in pasted headers)
+    .replace(/\u2044/g, "/") // fraction slash
+    .replace(/\s*\/\s*/g, "/")
+    .replace(/\s+/g, " ");
+}
+
+/** Last-resort: column title clearly about lesson scheduling / availability. */
+function lessonAvailabilityColumnKeyHeuristic(key: string): boolean {
+  const n = normalizeSheetHeaderKey(key);
+  if (!n.includes("lesson")) return false;
+  if (n.includes("preferable") || n.includes("preferred")) return true;
+  if (n.includes("avail") && (n.includes("time") || n.includes("block")))
+    return true;
+  return false;
+}
+
+/**
+ * Reads the lesson availability cell even if the sheet header differs slightly
+ * (spaces around "/", "Preferred" vs "Preferable", etc.).
+ */
+function readLessonAvailabilityFromRow(raw: Record<string, unknown>): string {
+  for (const key of LESSON_AVAILABILITY_KEY_CANDIDATES) {
+    const v = coerceSheetTextValue(raw[key]);
+    if (v !== "") return v;
+  }
+
+  const accepted = new Set([
+    "lesson availability/preferable time",
+    "lesson availability/preferred time",
+  ]);
+
+  for (const key of Object.keys(raw)) {
+    if (accepted.has(normalizeSheetHeaderKey(key))) {
+      const v = coerceSheetTextValue(raw[key]);
+      if (v !== "") return v;
+    }
+  }
+
+  for (const key of Object.keys(raw)) {
+    if (!lessonAvailabilityColumnKeyHeuristic(key)) continue;
+    const v = coerceSheetTextValue(raw[key]);
+    if (v !== "") return v;
+  }
+
+  return "";
 }
 
 /**
@@ -52,6 +134,15 @@ function normalizeDateLike(raw: string): string {
   const d = new Date(trimmed);
   if (!Number.isNaN(d.getTime())) return d.toISOString();
   return trimmed;
+}
+
+/** Form checkbox column often arrives as "A Block, D Block, F Block". */
+export function parseAvailabilityBlocks(raw: string): string[] {
+  if (!raw.trim()) return [];
+  return raw
+    .split(/[,;\n|]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export function mapSheetRowToProfile(
@@ -69,6 +160,7 @@ export function mapSheetRowToProfile(
     theory: cell(raw, SHEET_KEYS.theory),
     email: cell(raw, SHEET_KEYS.email),
     studentUpdates: cell(raw, SHEET_KEYS.studentUpdates),
+    availabilityRaw: readLessonAvailabilityFromRow(raw),
     lastUpdated: normalizeDateLike(cell(raw, SHEET_KEYS.timestamp)),
   };
 }

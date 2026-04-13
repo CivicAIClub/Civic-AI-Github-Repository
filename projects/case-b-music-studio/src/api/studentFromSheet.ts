@@ -1,4 +1,7 @@
-import type { SheetStudentProfile } from "./mapSheetStudentResponse";
+import {
+  parseAvailabilityBlocks,
+  type SheetStudentProfile,
+} from "./mapSheetStudentResponse";
 import type { Student } from "../types";
 
 function dash(s: string): string {
@@ -27,6 +30,7 @@ export function sheetProfileToStudent(profile: SheetStudentProfile): Student | n
     genre: dash(profile.genre),
     specificSong: dash(profile.specificSong),
     studentUpdates: dash(profile.studentUpdates),
+    availabilityBlocks: parseAvailabilityBlocks(profile.availabilityRaw),
     theory: profile.theory.trim() || undefined,
     contactEmail: profile.email.trim() || undefined,
     teacherNotes: "—",

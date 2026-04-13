@@ -29,6 +29,34 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * Some doGet handlers return { row: { ...sheet columns } } instead of a flat row.
+ * If we map the wrapper, every column lookup misses and the profile looks empty.
+ */
+function extractSingleStudentRow(json: Record<string, unknown>): Record<string, unknown> {
+  const wrapperCandidates = [
+    "row",
+    "student",
+    "record",
+    "data",
+    "profile",
+  ] as const;
+  let best: Record<string, unknown> | null = null;
+  let bestKeyCount = 0;
+  for (const k of wrapperCandidates) {
+    const inner = json[k];
+    if (!isRecord(inner) || Array.isArray(inner)) continue;
+    const n = Object.keys(inner).length;
+    if (n > bestKeyCount) {
+      bestKeyCount = n;
+      best = inner;
+    }
+  }
+  const outerKeys = Object.keys(json).length;
+  if (best && bestKeyCount > outerKeys) return best;
+  return json;
+}
+
 function extractRowArray(json: unknown): unknown[] {
   if (Array.isArray(json)) return json;
   if (isRecord(json)) {
@@ -82,7 +110,7 @@ export async function getAllStudents(
 
   for (const row of rows) {
     if (!isRecord(row)) continue;
-    const profile = mapSheetRowToProfile(row);
+    const profile = mapSheetRowToProfile(extractSingleStudentRow(row));
     if (profile.email.trim()) profiles.push(profile);
   }
 
@@ -140,5 +168,5 @@ export async function getStudentByEmail(
     throw new Error("Unexpected response: expected a JSON object (one row).");
   }
 
-  return mapSheetRowToProfile(json);
+  return mapSheetRowToProfile(extractSingleStudentRow(json));
 }

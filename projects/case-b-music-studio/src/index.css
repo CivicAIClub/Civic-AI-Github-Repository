@@ -809,6 +809,147 @@ a:hover {
   font-weight: 600;
 }
 
+.availability-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.availability-badges__item {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.lesson-schedule-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.lesson-schedule-list__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+
+.lesson-schedule-list__row:last-child {
+  border-bottom: none;
+}
+
+.lesson-schedule-list__link {
+  display: block;
+}
+
+.lesson-schedule-list__name {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.lesson-schedule-list__meta {
+  display: block;
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+
+.lesson-schedule-list__block {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+  color: var(--text);
+}
+
+.lesson-schedule-list__time {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+}
+
+.lesson-schedule-list__side {
+  text-align: right;
+  font-size: 0.85rem;
+}
+
+.lesson-schedule-list__status {
+  display: block;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.lesson-schedule-list__focus {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .lesson-schedule-list__row {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-schedule-list__side {
+    text-align: left;
+  }
+}
+
+.lesson-schedule-list--compact .lesson-schedule-list__row {
+  padding: 0.45rem 0;
+  grid-template-columns: 1fr;
+}
+
+.lesson-schedule-list--compact .lesson-schedule-list__side {
+  text-align: left;
+}
+
+.profile-booked {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.profile-booked__heading {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.profile-booked__source {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.profile-booked__sub {
+  margin: 0.65rem 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.profile-booked__line {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.profile-booked__note {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 @media (max-width: 720px) {
   .app-shell {
     flex-direction: column;

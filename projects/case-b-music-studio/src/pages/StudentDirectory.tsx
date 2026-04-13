@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { getStudentSchedule } from "../api/appsScriptSchedule";
 import { getAllStudents, getStudentByEmail } from "../api/appsScriptStudent";
 import type { SheetStudentProfile } from "../api/mapSheetStudentResponse";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
-import type { Student } from "../types";
+import {
+  formatLessonBlockDisplay,
+  formatLessonTimeRangeForDisplay,
+  lessonStableKey,
+  partitionStudentLessons,
+} from "../lib/lessonScheduleUtils";
+import type { ScheduledLesson, Student } from "../types";
 
 function formatDateShort(value: string) {
   if (!value.trim()) return "—";
@@ -43,6 +50,12 @@ type RosterFetchState =
   | { status: "success" }
   | { status: "error"; message: string };
 
+type ScheduleFetchState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; lessons: ScheduledLesson[] }
+  | { status: "error"; message: string };
+
 /** sessionStorage key; swap for API save when backend exists */
 const TEACHER_NOTES_STORAGE_PREFIX = "musicStudio.caseB.teacherNotes.v1:";
 
@@ -63,11 +76,77 @@ function readStoredTeacherNotes(studentId: string, fallback: string): string {
   return fallback === "—" ? "" : fallback;
 }
 
+function BookedLessonSummary({ lesson }: { lesson: ScheduledLesson }) {
+  const timeRange = formatLessonTimeRangeForDisplay(lesson);
+  return (
+    <p className="profile-booked__line">
+      <span className="strong">{formatDateLong(lesson.lessonDate)}</span>
+      {" · "}
+      {formatLessonBlockDisplay(lesson)}
+      {" · "}
+      <span className="muted">{lesson.status.trim() || "—"}</span>
+      {timeRange ? (
+        <>
+          <br />
+          <span className="muted">{timeRange}</span>
+        </>
+      ) : null}
+      {lesson.lessonFocus.trim() ? (
+        <>
+          <br />
+          <span className="muted">{lesson.lessonFocus.trim()}</span>
+        </>
+      ) : null}
+      {lesson.note.trim() ? (
+        <>
+          <br />
+          <span className="muted profile-booked__note">{lesson.note.trim()}</span>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+function BookedLessonListItem({ lesson }: { lesson: ScheduledLesson }) {
+  const timeRange = formatLessonTimeRangeForDisplay(lesson);
+  return (
+    <div>
+      <span className="strong">{formatDateLong(lesson.lessonDate)}</span>
+      <span className="muted">
+        {" "}
+        · {formatLessonBlockDisplay(lesson)} · {lesson.status.trim() || "—"}
+      </span>
+      {timeRange ? (
+        <span className="muted">
+          <br />
+          {timeRange}
+        </span>
+      ) : null}
+      {lesson.lessonFocus.trim() ? (
+        <span className="muted">
+          <br />
+          {lesson.lessonFocus.trim()}
+        </span>
+      ) : null}
+      {lesson.note.trim() ? (
+        <span className="muted profile-booked__note">
+          <br />
+          {lesson.note.trim()}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function StudentDetailPanel({
   student,
+  scheduleFetchState,
+  onScheduleRetry,
   onClose,
 }: {
   student: Student;
+  scheduleFetchState: ScheduleFetchState;
+  onScheduleRetry: () => void;
   onClose: () => void;
 }) {
   const [teacherNotesDraft, setTeacherNotesDraft] = useState(() =>
@@ -90,6 +169,12 @@ function StudentDetailPanel({
       /* quota / private mode */
     }
   };
+
+  const schedulePartition = useMemo(() => {
+    if (scheduleFetchState.status !== "success") return null;
+    const email = student.sheetEmail ?? student.id;
+    return partitionStudentLessons(scheduleFetchState.lessons, email);
+  }, [scheduleFetchState, student.id, student.sheetEmail]);
 
   return (
     <div className="card student-detail-panel">
@@ -191,6 +276,101 @@ function StudentDetailPanel({
         </dl>
       </section>
 
+      <section className="profile-section" aria-labelledby="profile-scheduling-h">
+        <h3 id="profile-scheduling-h" className="profile-section__heading">
+          Scheduling
+        </h3>
+        <dl className="dl student-detail-dl">
+          <div>
+            <dt>Preferred lesson availability</dt>
+            <dd>
+              {student.availabilityBlocks.length === 0 ? (
+                "—"
+              ) : (
+                <ul className="availability-badges" aria-label="Preferred lesson availability">
+                  {student.availabilityBlocks.map((block, i) => (
+                    <li
+                      key={`${block}:${i}`}
+                      className="availability-badges__item"
+                    >
+                      {block}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="profile-booked">
+          <h4 className="profile-booked__heading">Booked lessons</h4>
+          <p className="muted profile-booked__source">
+            From the <strong>Lesson Schedule</strong> sheet (actual lessons —
+            not form preferences).
+          </p>
+          {(scheduleFetchState.status === "loading" ||
+            scheduleFetchState.status === "idle") && (
+            <p className="muted">Loading schedule…</p>
+          )}
+          {scheduleFetchState.status === "error" && (
+            <>
+              <p className="empty-state" role="alert">
+                {scheduleFetchState.message}
+              </p>
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={onScheduleRetry}
+              >
+                Retry schedule
+              </button>
+            </>
+          )}
+          {scheduleFetchState.status === "success" && schedulePartition && (
+            <>
+              <p className="profile-booked__sub">Next lesson</p>
+              {schedulePartition.nextLesson ? (
+                <BookedLessonSummary lesson={schedulePartition.nextLesson} />
+              ) : (
+                <p className="muted profile-booked__line">—</p>
+              )}
+
+              <p className="profile-booked__sub">Upcoming</p>
+              {schedulePartition.upcomingLessons.length === 0 ? (
+                <p className="muted profile-booked__line">—</p>
+              ) : (
+                <ul className="lesson-schedule-list lesson-schedule-list--compact">
+                  {schedulePartition.upcomingLessons.map((lesson, i) => (
+                    <li
+                      key={lessonStableKey(lesson, i)}
+                      className="lesson-schedule-list__row"
+                    >
+                      <BookedLessonListItem lesson={lesson} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <p className="profile-booked__sub">Recent</p>
+              {schedulePartition.recentLessons.length === 0 ? (
+                <p className="muted profile-booked__line">—</p>
+              ) : (
+                <ul className="lesson-schedule-list lesson-schedule-list--compact">
+                  {schedulePartition.recentLessons.map((lesson, i) => (
+                    <li
+                      key={lessonStableKey(lesson, i)}
+                      className="lesson-schedule-list__row"
+                    >
+                      <BookedLessonListItem lesson={lesson} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
       <section className="profile-section profile-section--notes" aria-labelledby="profile-teacher-h">
         <h3 id="profile-teacher-h" className="profile-section__heading">
           Teacher notes
@@ -225,6 +405,9 @@ export function StudentDirectory() {
     status: "idle",
   });
   const [sheetRetryToken, setSheetRetryToken] = useState(0);
+  const [scheduleFetchState, setScheduleFetchState] =
+    useState<ScheduleFetchState>({ status: "idle" });
+  const [scheduleRetryToken, setScheduleRetryToken] = useState(0);
 
   const [query, setQuery] = useState("");
   const [instrument, setInstrument] = useState("");
@@ -328,6 +511,30 @@ export function StudentDirectory() {
 
     return () => ac.abort();
   }, [selectedStudent?.sheetEmail, sheetRetryToken]);
+
+  useEffect(() => {
+    if (!selectedStudent?.sheetEmail) {
+      setScheduleFetchState({ status: "idle" });
+      return;
+    }
+
+    const ac = new AbortController();
+    const email = selectedStudent.sheetEmail;
+    setScheduleFetchState({ status: "loading" });
+
+    getStudentSchedule(email, { signal: ac.signal })
+      .then((lessons) => {
+        setScheduleFetchState({ status: "success", lessons });
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const message =
+          err instanceof Error ? err.message : "Could not load schedule.";
+        setScheduleFetchState({ status: "error", message });
+      });
+
+    return () => ac.abort();
+  }, [selectedStudent?.sheetEmail, sheetRetryToken, scheduleRetryToken]);
 
   const detailStudent = useMemo(() => {
     if (sheetFetchState.status !== "success") return undefined;
@@ -534,7 +741,10 @@ export function StudentDirectory() {
               </div>
             ) : detailStudent ? (
               <StudentDetailPanel
+                key={detailStudent.id}
                 student={detailStudent}
+                scheduleFetchState={scheduleFetchState}
+                onScheduleRetry={() => setScheduleRetryToken((n) => n + 1)}
                 onClose={() => setSelection(null)}
               />
             ) : (

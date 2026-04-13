@@ -1,20 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { getScheduleList } from "../api/appsScriptSchedule";
 import type { SheetStudentProfile } from "../api/mapSheetStudentResponse";
 import { getAllStudents } from "../api/appsScriptStudent";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
+import {
+  formatLessonBlockDisplay,
+  formatLessonTimeRangeForDisplay,
+  lessonStableKey,
+  upcomingLessonsSorted,
+} from "../lib/lessonScheduleUtils";
 import {
   computeProfileUpdatesSinceLastVisit,
   loadProfileSnapshots,
   saveProfileSnapshots,
   type DashboardProfileUpdate,
 } from "../lib/studentProfileSnapshots";
-import type { Student } from "../types";
+import type { ScheduledLesson, Student } from "../types";
 
 function clipText(s: string, max = 160): string {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max)}…`;
+}
+
+function formatLessonDate(value: string) {
+  if (!value.trim()) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value.trim() || "—";
+  return d.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function Dashboard() {
@@ -28,6 +47,36 @@ export function Dashboard() {
   const [rosterLoadStatus, setRosterLoadStatus] = useState<
     "idle" | "ok" | "error"
   >("idle");
+
+  const [scheduleLoadStatus, setScheduleLoadStatus] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("loading");
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleLessons, setScheduleLessons] = useState<ScheduledLesson[]>([]);
+
+  const upcomingForDashboard = useMemo(() => {
+    return upcomingLessonsSorted(scheduleLessons).slice(0, 20);
+  }, [scheduleLessons]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    setScheduleLoadStatus("loading");
+    setScheduleError(null);
+    getScheduleList({ signal: ac.signal })
+      .then((list) => {
+        setScheduleLessons(list);
+        setScheduleLoadStatus("ok");
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setScheduleLessons([]);
+        setScheduleError(
+          err instanceof Error ? err.message : "Could not load schedule."
+        );
+        setScheduleLoadStatus("error");
+      });
+    return () => ac.abort();
+  }, []);
 
   // Same roster as the Students page (Apps Script ?action=list) for count + quick search.
   // Snapshots are saved here only so “what changed” means since your last Dashboard visit.
@@ -228,15 +277,75 @@ export function Dashboard() {
             )}
         </section>
 
-        <section className="card span-2 placeholder-card">
+        <section className="card span-2">
           <h2 className="card__title">Upcoming lessons</h2>
-          <p className="placeholder-text">
-            Calendar and reminders will appear here after scheduling is
-            connected.
+          <p className="muted profile-updates-intro">
+            Booked lessons from your{" "}
+            <strong>Lesson Schedule</strong> sheet (Scheduled / Rescheduled,
+            today onward). Preferred blocks from the form are not shown here.
           </p>
-          <p className="muted">
-            For now, use your regular planner — this block is a placeholder.
-          </p>
+          {scheduleLoadStatus === "loading" && (
+            <p className="muted">Loading schedule…</p>
+          )}
+          {scheduleLoadStatus === "error" && scheduleError && (
+            <div role="alert">
+              <p className="empty-state">{scheduleError}</p>
+              <p className="muted empty-state">
+                Add <code>?action=schedule-list</code> to your Apps Script and a
+                tab named <code>Lesson Schedule</code> (see{" "}
+                <code>apps-script/lesson-schedule-doGet-snippet.js</code> and{" "}
+                <code>src/api/appsScriptSchedule.ts</code>).
+              </p>
+            </div>
+          )}
+          {scheduleLoadStatus === "ok" && upcomingForDashboard.length === 0 && (
+            <p className="placeholder-text">No upcoming scheduled lessons.</p>
+          )}
+          {scheduleLoadStatus === "ok" && upcomingForDashboard.length > 0 && (
+            <ul className="lesson-schedule-list">
+              {upcomingForDashboard.map((lesson, i) => {
+                const timeRange = formatLessonTimeRangeForDisplay(lesson);
+                return (
+                <li
+                  key={lessonStableKey(lesson, i)}
+                  className="lesson-schedule-list__row"
+                >
+                  <div className="lesson-schedule-list__main">
+                    <Link
+                      to={`/students?student=${encodeURIComponent(lesson.studentEmail)}`}
+                      className="link-block lesson-schedule-list__link"
+                    >
+                      <span className="strong lesson-schedule-list__name">
+                        {lesson.studentName.trim() || lesson.studentEmail}
+                      </span>
+                      <span className="muted lesson-schedule-list__meta">
+                        {formatLessonDate(lesson.lessonDate)}
+                      </span>
+                      <span className="lesson-schedule-list__block">
+                        {formatLessonBlockDisplay(lesson)}
+                      </span>
+                      {timeRange ? (
+                        <span className="muted lesson-schedule-list__time">
+                          {timeRange}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </div>
+                  <div className="lesson-schedule-list__side">
+                    <span className="lesson-schedule-list__status">
+                      {lesson.status.trim() || "—"}
+                    </span>
+                    <span className="muted lesson-schedule-list__focus">
+                      {lesson.lessonFocus.trim()
+                        ? clipText(lesson.lessonFocus, 120)
+                        : "—"}
+                    </span>
+                  </div>
+                </li>
+              );
+              })}
+            </ul>
+          )}
         </section>
       </div>
     </div>

@@ -14,6 +14,8 @@ export type Student = {
   specificSong: string;
   /** "Any updates? Questions?" */
   studentUpdates: string;
+  /** Parsed from "Lesson Availability/ Preferable Time" (e.g. block labels) */
+  availabilityBlocks: string[];
   /** Local / session edits until a backend exists */
   teacherNotes: string;
   /** When set, the profile panel loads this row from Google Apps Script by email */
@@ -21,6 +23,20 @@ export type Student = {
   theory?: string;
   /** From sheet column "Email Address" when loaded via Apps Script */
   contactEmail?: string;
+};
+
+/** One booked lesson row from the "Lesson Schedule" sheet (via Apps Script). */
+export type ScheduledLesson = {
+  studentEmail: string;
+  studentName: string;
+  lessonDate: string;
+  lessonBlock: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  lessonFocus: string;
+  /** From sheet column "Note" or "Notes" */
+  note: string;
 };
 
 export type ResourceCategory =

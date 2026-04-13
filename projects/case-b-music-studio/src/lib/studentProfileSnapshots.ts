@@ -22,6 +22,7 @@ function profileFromStoredRow(row: Record<string, unknown>): SheetStudentProfile
     theory: String(row.theory ?? ""),
     email: String(row.email ?? ""),
     studentUpdates: String(row.studentUpdates ?? ""),
+    availabilityRaw: String(row.availabilityRaw ?? ""),
     lastUpdated: String(row.lastUpdated ?? ""),
   };
 }
@@ -73,6 +74,7 @@ const TRACKED_FIELDS: { key: keyof SheetStudentProfile; label: string }[] = [
   { key: "theory", label: "Music theory" },
   { key: "email", label: "Email" },
   { key: "studentUpdates", label: "Updates / questions" },
+  { key: "availabilityRaw", label: "Lesson availability" },
   { key: "lastUpdated", label: "Last updated" },
 ];
 
