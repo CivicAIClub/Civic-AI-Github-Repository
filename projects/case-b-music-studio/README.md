@@ -23,7 +23,28 @@ Build a centralized "Resource Hub" for reusable lesson materials and a "Music St
 | Developer | JT Gannon |
 
 ## Setup
-_To be added once development begins._
+
+From this folder (`projects/case-b-music-studio/`):
+
+```bash
+npm install
+npm run dev
+```
+
+Open the URL Vite prints (usually `http://localhost:5173`). To build a production bundle:
+
+```bash
+npm run build
+npm run preview   # optional local preview of the build
+```
+
+**Data:** The app uses **mock students and mock teaching resources** only. Google Forms / Sheets (and other APIs) will replace the sample data later.
+
+## App structure (prototype)
+
+- **Dashboard** — roster count, student name search (links to Students with profile open), placeholders for recent updates and upcoming lessons.
+- **Students** — directory with filters; clicking a student opens an **inline profile panel** (no separate profile URL).
+- **Resource Hub** — categorized mock materials (sheet music, exercises, warmups, etc.) with search and category filter.
 
 ## Status
-🟡 Discovery phase
+🟢 Frontend MVP — dashboard, inline student profiles, resource hub (prototype UI)
