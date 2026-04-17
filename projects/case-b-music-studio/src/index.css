@@ -623,6 +623,12 @@ a:hover {
   min-height: 5.5rem;
 }
 
+.profile-teacher-notes-status {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .profile-section__heading {
   margin: 0 0 0.65rem;
   font-size: 0.72rem;
@@ -634,6 +640,16 @@ a:hover {
 
 .profile-section--notes {
   border-top-color: var(--border-strong);
+}
+
+.profile-section--form-history {
+  border-top-color: var(--border-strong);
+}
+
+.profile-form-history-lead {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  max-width: 42rem;
 }
 
 .profile-section .student-detail-dl {

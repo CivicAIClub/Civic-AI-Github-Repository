@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { getStudentSchedule } from "../api/appsScriptSchedule";
-import { getAllStudents, getStudentByEmail } from "../api/appsScriptStudent";
 import type { SheetStudentProfile } from "../api/mapSheetStudentResponse";
+import { getAllStudents, getStudentByEmail } from "../api/appsScriptStudent";
+import { FormSubmissionHistorySection } from "../components/FormSubmissionHistorySection";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
 import {
   formatLessonBlockDisplay,
@@ -56,8 +63,23 @@ type ScheduleFetchState =
   | { status: "success"; lessons: ScheduledLesson[] }
   | { status: "error"; message: string };
 
-/** sessionStorage key; swap for API save when backend exists */
-const TEACHER_NOTES_STORAGE_PREFIX = "musicStudio.caseB.teacherNotes.v1:";
+/** Read-only: older session-only notes before per-student localStorage keys */
+const LEGACY_TEACHER_NOTES_SESSION_PREFIX =
+  "musicStudio.caseB.teacherNotes.v1:";
+
+const NOTES_AUTOSAVE_MS = 400;
+
+function studentNotesStorageKey(studentId: string): string {
+  return `student-notes-${studentId}`;
+}
+
+function writeStudentNotesLocal(studentId: string, value: string): void {
+  try {
+    localStorage.setItem(studentNotesStorageKey(studentId), value);
+  } catch {
+    /* quota / private mode */
+  }
+}
 
 function displayField(s: string | undefined): string {
   const t = (s ?? "").trim();
@@ -66,10 +88,14 @@ function displayField(s: string | undefined): string {
 
 function readStoredTeacherNotes(studentId: string, fallback: string): string {
   try {
-    const stored = sessionStorage.getItem(
-      `${TEACHER_NOTES_STORAGE_PREFIX}${studentId}`
+    const fromLocal = localStorage.getItem(
+      studentNotesStorageKey(studentId)
     );
-    if (stored !== null) return stored;
+    if (fromLocal !== null) return fromLocal;
+    const legacy = sessionStorage.getItem(
+      `${LEGACY_TEACHER_NOTES_SESSION_PREFIX}${studentId}`
+    );
+    if (legacy !== null) return legacy;
   } catch {
     /* private mode */
   }
@@ -140,11 +166,13 @@ function BookedLessonListItem({ lesson }: { lesson: ScheduledLesson }) {
 
 function StudentDetailPanel({
   student,
+  formSubmissions,
   scheduleFetchState,
   onScheduleRetry,
   onClose,
 }: {
   student: Student;
+  formSubmissions: SheetStudentProfile[];
   scheduleFetchState: ScheduleFetchState;
   onScheduleRetry: () => void;
   onClose: () => void;
@@ -152,23 +180,58 @@ function StudentDetailPanel({
   const [teacherNotesDraft, setTeacherNotesDraft] = useState(() =>
     readStoredTeacherNotes(student.id, student.teacherNotes)
   );
+  const [notesSaveStatus, setNotesSaveStatus] = useState<
+    "idle" | "pending" | "saved"
+  >("idle");
+
+  const teacherNotesDraftRef = useRef(teacherNotesDraft);
+  teacherNotesDraftRef.current = teacherNotesDraft;
+
+  const notesSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   useEffect(() => {
-    setTeacherNotesDraft(
-      readStoredTeacherNotes(student.id, student.teacherNotes)
-    );
+    const next = readStoredTeacherNotes(student.id, student.teacherNotes);
+    setTeacherNotesDraft(next);
+    teacherNotesDraftRef.current = next;
+    setNotesSaveStatus("idle");
   }, [student.id, student.teacherNotes]);
 
-  const persistTeacherNotes = () => {
-    try {
-      sessionStorage.setItem(
-        `${TEACHER_NOTES_STORAGE_PREFIX}${student.id}`,
-        teacherNotesDraft
-      );
-    } catch {
-      /* quota / private mode */
+  const clearNotesSaveTimeout = useCallback(() => {
+    if (notesSaveTimeoutRef.current !== null) {
+      clearTimeout(notesSaveTimeoutRef.current);
+      notesSaveTimeoutRef.current = null;
     }
-  };
+  }, []);
+
+  const flushNotesToLocalStorage = useCallback(() => {
+    clearNotesSaveTimeout();
+    writeStudentNotesLocal(student.id, teacherNotesDraftRef.current);
+    setNotesSaveStatus("saved");
+  }, [clearNotesSaveTimeout, student.id]);
+
+  useEffect(() => {
+    return () => {
+      clearNotesSaveTimeout();
+      writeStudentNotesLocal(student.id, teacherNotesDraftRef.current);
+    };
+  }, [clearNotesSaveTimeout, student.id]);
+
+  const handleTeacherNotesChange = useCallback(
+    (value: string) => {
+      setTeacherNotesDraft(value);
+      teacherNotesDraftRef.current = value;
+      setNotesSaveStatus("pending");
+      clearNotesSaveTimeout();
+      notesSaveTimeoutRef.current = setTimeout(() => {
+        notesSaveTimeoutRef.current = null;
+        writeStudentNotesLocal(student.id, teacherNotesDraftRef.current);
+        setNotesSaveStatus("saved");
+      }, NOTES_AUTOSAVE_MS);
+    },
+    [clearNotesSaveTimeout, student.id]
+  );
 
   const schedulePartition = useMemo(() => {
     if (scheduleFetchState.status !== "success") return null;
@@ -276,6 +339,8 @@ function StudentDetailPanel({
         </dl>
       </section>
 
+      <FormSubmissionHistorySection submissions={formSubmissions} />
+
       <section className="profile-section" aria-labelledby="profile-scheduling-h">
         <h3 id="profile-scheduling-h" className="profile-section__heading">
           Scheduling
@@ -382,11 +447,20 @@ function StudentDetailPanel({
           className="input profile-teacher-notes"
           rows={6}
           value={teacherNotesDraft}
-          onChange={(e) => setTeacherNotesDraft(e.target.value)}
-          onBlur={persistTeacherNotes}
+          onChange={(e) => handleTeacherNotesChange(e.target.value)}
+          onBlur={flushNotesToLocalStorage}
           aria-label="Teacher notes for this student"
           placeholder="Lesson prep, follow-ups, private reminders…"
         />
+        {(notesSaveStatus === "pending" || notesSaveStatus === "saved") && (
+          <p
+            className="muted profile-teacher-notes-status"
+            role="status"
+            aria-live="polite"
+          >
+            {notesSaveStatus === "pending" ? "Saving…" : "Saved"}
+          </p>
+        )}
       </section>
     </div>
   );
@@ -396,6 +470,9 @@ export function StudentDirectory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
+  const [submissionsByEmail, setSubmissionsByEmail] = useState<
+    Record<string, SheetStudentProfile[]>
+  >({});
   const [rosterState, setRosterState] = useState<RosterFetchState>({
     status: "idle",
   });
@@ -418,7 +495,7 @@ export function StudentDirectory() {
     const ac = new AbortController();
     setRosterState({ status: "loading" });
     getAllStudents({ signal: ac.signal })
-      .then((profiles) => {
+      .then(({ students: profiles, submissionsByEmail: byEmail }) => {
         const list: Student[] = [];
         for (const p of profiles) {
           const s = sheetProfileToStudent(p);
@@ -426,6 +503,7 @@ export function StudentDirectory() {
         }
         list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
         setStudents(list);
+        setSubmissionsByEmail(byEmail);
         setRosterState({ status: "success" });
       })
       .catch((err: unknown) => {
@@ -433,6 +511,7 @@ export function StudentDirectory() {
         const message =
           err instanceof Error ? err.message : "Could not load roster.";
         setStudents([]);
+        setSubmissionsByEmail({});
         setRosterState({ status: "error", message });
       });
     return () => ac.abort();
@@ -540,6 +619,12 @@ export function StudentDirectory() {
     if (sheetFetchState.status !== "success") return undefined;
     return sheetProfileToStudent(sheetFetchState.profile) ?? undefined;
   }, [sheetFetchState]);
+
+  const profileFormSubmissions = useMemo(() => {
+    const email = selectedStudent?.sheetEmail?.trim().toLowerCase();
+    if (!email) return [];
+    return submissionsByEmail[email] ?? [];
+  }, [selectedStudent?.sheetEmail, submissionsByEmail]);
 
   useEffect(() => {
     if (
@@ -743,6 +828,7 @@ export function StudentDirectory() {
               <StudentDetailPanel
                 key={detailStudent.id}
                 student={detailStudent}
+                formSubmissions={profileFormSubmissions}
                 scheduleFetchState={scheduleFetchState}
                 onScheduleRetry={() => setScheduleRetryToken((n) => n + 1)}
                 onClose={() => setSelection(null)}

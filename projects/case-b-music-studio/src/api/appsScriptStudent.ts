@@ -9,6 +9,9 @@
  *          { "students": [...] }  { "rows": [...] }  { "data": [...] }
  *    Each object should use the same column titles as your Google Form / Sheet
  *    (see mapSheetRowToProfile in mapSheetStudentResponse.ts).
+ *    Multiple rows with the same Email Address are treated as separate form
+ *    submissions; the app keeps the latest row for the roster and shows history
+ *    on the student profile.
  *
  * 2) One student (profile panel — freshest row for that email)
  *    URL:  BASE_URL?email=student@example.com
@@ -21,6 +24,7 @@ import {
   mapSheetRowToProfile,
   type SheetStudentProfile,
 } from "./mapSheetStudentResponse";
+import { pickLatestProfileFromSubmissions } from "../lib/formSubmissionHistory";
 
 export const APPS_SCRIPT_BASE_URL =
   "https://script.google.com/macros/s/AKfycbwQnBSy26Wo54JwOIMAbaCJf37qAPF_kHpBxIJrm8AanfmxRSmGJIBKjYdHuaU2yxpN9g/exec";
@@ -69,13 +73,20 @@ function extractRowArray(json: unknown): unknown[] {
   );
 }
 
+export type AllStudentsRosterResult = {
+  /** Latest row per email (by form Timestamp / Date when present). */
+  students: SheetStudentProfile[];
+  /** All list rows grouped by lowercase email (sheet order preserved per key). */
+  submissionsByEmail: Record<string, SheetStudentProfile[]>;
+};
+
 /**
  * Fetches everyone for the student list (Students page + Dashboard count/search).
  * Your Apps Script doGet should handle e.parameter.action === "list".
  */
 export async function getAllStudents(
   init?: RequestInit
-): Promise<SheetStudentProfile[]> {
+): Promise<AllStudentsRosterResult> {
   const url = `${APPS_SCRIPT_BASE_URL}?action=list`;
 
   const res = await fetch(url, {
@@ -106,19 +117,24 @@ export async function getAllStudents(
   }
 
   const rows = extractRowArray(json);
-  const profiles: SheetStudentProfile[] = [];
+  const submissionsByEmail: Record<string, SheetStudentProfile[]> = {};
 
   for (const row of rows) {
     if (!isRecord(row)) continue;
     const profile = mapSheetRowToProfile(extractSingleStudentRow(row));
-    if (profile.email.trim()) profiles.push(profile);
+    const emailKey = profile.email.trim().toLowerCase();
+    if (!emailKey) continue;
+    if (!submissionsByEmail[emailKey]) submissionsByEmail[emailKey] = [];
+    submissionsByEmail[emailKey].push(profile);
   }
 
-  const byEmail = new Map<string, SheetStudentProfile>();
-  for (const p of profiles) {
-    byEmail.set(p.email.trim().toLowerCase(), p);
+  const students: SheetStudentProfile[] = [];
+  for (const list of Object.values(submissionsByEmail)) {
+    const latest = pickLatestProfileFromSubmissions(list);
+    if (latest) students.push(latest);
   }
-  return [...byEmail.values()];
+
+  return { students, submissionsByEmail };
 }
 
 /**

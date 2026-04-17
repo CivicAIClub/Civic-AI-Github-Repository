@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getScheduleList } from "../api/appsScriptSchedule";
-import type { SheetStudentProfile } from "../api/mapSheetStudentResponse";
 import { getAllStudents } from "../api/appsScriptStudent";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
 import {
@@ -83,7 +82,7 @@ export function Dashboard() {
   useEffect(() => {
     const ac = new AbortController();
     getAllStudents({ signal: ac.signal })
-      .then((profiles: SheetStudentProfile[]) => {
+      .then(({ students: profiles }) => {
         const previous = loadProfileSnapshots();
         const { isBaselineVisit, updates } =
           computeProfileUpdatesSinceLastVisit(previous, profiles);
