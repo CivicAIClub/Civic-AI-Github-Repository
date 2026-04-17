@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        color: #333;
+      }
+      h3 {
+        margin-top: 0;
+        color: #2c3e50;
+      }
+      label {
+        display: block;
+        margin-top: 14px;
+        font-weight: bold;
+        font-size: 13px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        margin-top: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 13px;
+      }
+      .help {
+        font-size: 11px;
+        color: #666;
+        margin-top: 4px;
+      }
+      .notice {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        padding: 10px 12px;
+        font-size: 12px;
+        color: #856404;
+        margin-bottom: 12px;
+      }
+      .notice strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .status-box {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px 12px;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+      .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+      }
+      .status-dot.red { background: #dc3545; }
+      .status-dot.green { background: #28a745; }
+      .status-dot.yellow { background: #ffc107; }
+      .btn {
+        background: #4a86c8;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 16px;
+        font-size: 14px;
+      }
+      .btn:hover {
+        background: #3a76b8;
+      }
+      .btn-secondary {
+        background: #6c757d;
+      }
+      .btn-secondary:hover {
+        background: #5a6268;
+      }
+      .error {
+        color: #d32f2f;
+        font-size: 12px;
+        margin-top: 10px;
+        display: none;
+      }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Connect to Sundial</h3>
+
+    <div class="notice">
+      <strong>Requires school admin action</strong>
+      Your school's IT admin must enable the Blackbaud SKY API and register
+      this application before you can connect. Contact your admin for the
+      Client ID, Client Secret, and Subscription Key.
+    </div>
+
+    <div class="status-box" id="statusBox">
+      <span class="status-dot red" id="statusDot"></span>
+      <span id="statusText">Checking connection...</span>
+    </div>
+
+    <label>Client ID</label>
+    <input type="text" id="clientId" placeholder="From Blackbaud developer portal" />
+    <div class="help">Provided by your school's IT admin</div>
+
+    <label>Client Secret</label>
+    <input type="password" id="clientSecret" placeholder="From Blackbaud developer portal" />
+
+    <label>Subscription Key</label>
+    <input type="text" id="subscriptionKey" placeholder="Bb-Api-Subscription-Key" />
+    <div class="help">Found in the Blackbaud developer portal under your app profile</div>
+
+    <div class="error" id="error"></div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="saveCredentials()">Save Credentials</button>
+      <button class="btn btn-secondary" onclick="google.script.host.close()">Cancel</button>
+    </div>
+
+    <script>
+      // Check connection status on load
+      google.script.run
+        .withSuccessHandler(function (status) {
+          var dot = document.getElementById("statusDot");
+          var text = document.getElementById("statusText");
+          if (status.connected) {
+            dot.className = "status-dot green";
+            text.textContent = "Connected to Sundial";
+          } else {
+            dot.className = "status-dot red";
+            text.textContent = status.message;
+          }
+        })
+        .withFailureHandler(function () {
+          document.getElementById("statusText").textContent = "Could not check status.";
+        })
+        .checkSundialConnection();
+
+      function saveCredentials() {
+        var clientId = document.getElementById("clientId").value.trim();
+        var clientSecret = document.getElementById("clientSecret").value.trim();
+        var subscriptionKey = document.getElementById("subscriptionKey").value.trim();
+        var errorEl = document.getElementById("error");
+
+        if (!clientId || !clientSecret || !subscriptionKey) {
+          errorEl.style.display = "block";
+          errorEl.textContent = "All three fields are required.";
+          return;
+        }
+
+        errorEl.style.display = "none";
+
+        google.script.run
+          .withSuccessHandler(function () {
+            var dot = document.getElementById("statusDot");
+            var text = document.getElementById("statusText");
+            dot.className = "status-dot yellow";
+            text.textContent = "Credentials saved. OAuth authorization needed — this step is not yet implemented.";
+          })
+          .withFailureHandler(function (err) {
+            errorEl.style.display = "block";
+            errorEl.textContent = "Error: " + err.message;
+          })
+          .saveSundialCredentials(clientId, clientSecret, subscriptionKey);
+      }
+    </script>
+  </body>
+</html>

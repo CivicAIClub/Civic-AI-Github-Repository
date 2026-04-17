@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        color: #333;
+      }
+      label {
+        display: block;
+        margin-top: 14px;
+        font-weight: bold;
+        font-size: 13px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        margin-top: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 13px;
+      }
+      .help {
+        font-size: 11px;
+        color: #666;
+        margin-top: 4px;
+      }
+      .btn {
+        background: #4a86c8;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 20px;
+        font-size: 14px;
+      }
+      .btn:hover {
+        background: #3a76b8;
+      }
+      .error {
+        color: #d32f2f;
+        font-size: 12px;
+        margin-top: 10px;
+        display: none;
+      }
+      .instructions {
+        background: #f5f5f5;
+        padding: 10px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        color: #555;
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="instructions">
+      To get your API token: open Canvas → click your profile picture →
+      <strong>Settings</strong> → scroll to <strong>Approved Integrations</strong>
+      → <strong>+ New Access Token</strong>
+    </div>
+
+    <label>Canvas URL</label>
+    <input type="text" id="baseUrl" placeholder="https://yourschool.instructure.com" />
+    <div class="help">Your school's Canvas address</div>
+
+    <label>API Token</label>
+    <input type="password" id="token" placeholder="Paste your Canvas API token here" />
+    <div class="help">This is stored privately — only you can access it</div>
+
+    <div class="error" id="error"></div>
+
+    <button class="btn" onclick="save()">Save</button>
+
+    <script>
+      function save() {
+        var baseUrl = document.getElementById("baseUrl").value.trim();
+        var token = document.getElementById("token").value.trim();
+        var errorEl = document.getElementById("error");
+
+        if (!baseUrl || !token) {
+          errorEl.style.display = "block";
+          errorEl.textContent = "Both fields are required.";
+          return;
+        }
+
+        if (!baseUrl.startsWith("http")) {
+          baseUrl = "https://" + baseUrl;
+        }
+
+        errorEl.style.display = "none";
+
+        google.script.run
+          .withSuccessHandler(function () {
+            google.script.host.close();
+          })
+          .withFailureHandler(function (err) {
+            errorEl.style.display = "block";
+            errorEl.textContent = "Error: " + err.message;
+          })
+          .saveToken(token, baseUrl);
+      }
+    </script>
+  </body>
+</html>

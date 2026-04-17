@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        color: #333;
+      }
+      h3 {
+        margin-top: 0;
+        color: #2c3e50;
+      }
+      label {
+        display: block;
+        margin-top: 14px;
+        font-weight: bold;
+        font-size: 13px;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        margin-top: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 13px;
+      }
+      .help {
+        font-size: 11px;
+        color: #666;
+        margin-top: 4px;
+      }
+      .section-summary {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-top: 12px;
+        overflow: hidden;
+      }
+      .section-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #eee;
+        font-size: 13px;
+      }
+      .section-row:last-child {
+        border-bottom: none;
+      }
+      .section-row.header {
+        background: #f5f5f5;
+        font-weight: bold;
+        font-size: 12px;
+        color: #666;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: bold;
+      }
+      .badge.complete {
+        background: #d4edda;
+        color: #155724;
+      }
+      .badge.partial {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .badge.empty {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .totals {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px 12px;
+        margin-top: 12px;
+        font-size: 13px;
+      }
+      .btn {
+        background: #4a86c8;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 14px;
+        font-size: 14px;
+        width: 100%;
+      }
+      .btn:hover {
+        background: #3a76b8;
+      }
+      .btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .btn.btn-export {
+        background: #28a745;
+      }
+      .btn.btn-export:hover {
+        background: #218838;
+      }
+      .btn.btn-export:disabled {
+        background: #ccc;
+      }
+      .status {
+        font-size: 12px;
+        margin-top: 10px;
+        min-height: 18px;
+      }
+      .status.success {
+        color: #155724;
+      }
+      .status.error {
+        color: #d32f2f;
+      }
+      .loading {
+        text-align: center;
+        padding: 30px;
+        color: #888;
+      }
+      .step {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid #eee;
+      }
+      .step-label {
+        font-size: 11px;
+        font-weight: bold;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+      .prefill-link {
+        font-size: 11px;
+        color: #4a86c8;
+        cursor: pointer;
+        margin-top: 4px;
+        display: inline-block;
+      }
+      .prefill-link:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Export Comments to Sundial</h3>
+
+    <!-- Step 1: Enter folder URL -->
+    <div id="step1">
+      <div class="step-label">Step 1: Select Comments Folder</div>
+      <label>Google Drive Folder URL</label>
+      <input
+        type="text"
+        id="folderUrl"
+        placeholder="https://drive.google.com/drive/folders/..."
+      />
+      <div class="help">
+        The Drive folder created when you generated comment templates
+      </div>
+      <span class="prefill-link" id="prefillLink" onclick="prefillLastFolder()" style="display:none">
+        Use last generated folder
+      </span>
+      <button class="btn" onclick="loadPreview()">Load Preview</button>
+    </div>
+
+    <!-- Step 2: Preview -->
+    <div id="step2" style="display: none">
+      <div class="step-label">Step 2: Review All Classes</div>
+
+      <div class="section-summary" id="sectionSummary">
+        <div class="loading">Reading documents...</div>
+      </div>
+
+      <div class="totals" id="totals" style="display: none"></div>
+
+      <div class="step">
+        <div class="step-label">Step 3: Export to Sundial</div>
+        <button
+          class="btn btn-export"
+          id="exportBtn"
+          onclick="exportToSundial()"
+          disabled
+        >
+          Export All to Sundial
+        </button>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+
+    <script>
+      var folderUrl = "";
+      var lastFolder = "";
+
+      // Check if there's a previously generated folder
+      google.script.run
+        .withSuccessHandler(function (url) {
+          if (url) {
+            lastFolder = url;
+            document.getElementById("prefillLink").style.display = "inline-block";
+          }
+        })
+        .getLastCommentsFolder();
+
+      function prefillLastFolder() {
+        document.getElementById("folderUrl").value = lastFolder;
+      }
+
+      function loadPreview() {
+        folderUrl = document.getElementById("folderUrl").value.trim();
+        if (!folderUrl) return;
+
+        document.getElementById("step2").style.display = "block";
+        document.getElementById("sectionSummary").innerHTML =
+          '<div class="loading">Reading comments from all documents...</div>';
+
+        google.script.run
+          .withSuccessHandler(function (summary) {
+            renderSummary(summary);
+          })
+          .withFailureHandler(function (err) {
+            document.getElementById("sectionSummary").innerHTML =
+              '<div class="loading" style="color:#d32f2f">Error: ' +
+              escapeHtml(err.message) +
+              "</div>";
+          })
+          .getCommentsSummaryFromFolder(folderUrl);
+      }
+
+      function renderSummary(summary) {
+        var html =
+          '<div class="section-row header">' +
+          "<span>Class</span><span>Comments</span>" +
+          "</div>";
+
+        for (var i = 0; i < summary.sections.length; i++) {
+          var s = summary.sections[i];
+          var badgeClass =
+            s.withComments === s.totalStudents
+              ? "complete"
+              : s.withComments > 0
+              ? "partial"
+              : "empty";
+          var badgeText =
+            s.withComments + " / " + s.totalStudents + " students";
+
+          html +=
+            '<div class="section-row">' +
+            "<span>" + escapeHtml(s.courseName) + "</span>" +
+            '<span class="badge ' + badgeClass + '">' + badgeText + "</span>" +
+            "</div>";
+        }
+
+        document.getElementById("sectionSummary").innerHTML = html;
+
+        var totalsEl = document.getElementById("totals");
+        totalsEl.style.display = "block";
+        totalsEl.innerHTML =
+          "<strong>Total:</strong> " +
+          summary.totalWithComments +
+          " of " +
+          summary.totalStudents +
+          " students have comments across " +
+          summary.sections.length +
+          " classes";
+
+        document.getElementById("exportBtn").disabled =
+          summary.totalWithComments === 0;
+      }
+
+      function exportToSundial() {
+        var btn = document.getElementById("exportBtn");
+        var statusEl = document.getElementById("status");
+
+        btn.disabled = true;
+        btn.textContent = "Exporting...";
+        statusEl.className = "status";
+        statusEl.textContent =
+          "Reading all documents and pushing comments to Sundial...";
+
+        google.script.run
+          .withSuccessHandler(function (result) {
+            statusEl.className = "status success";
+            statusEl.textContent =
+              "Exported " +
+              result.success +
+              " comments. " +
+              (result.failed > 0
+                ? result.failed + " failed."
+                : "All successful!");
+            btn.textContent = "Done!";
+          })
+          .withFailureHandler(function (err) {
+            statusEl.className = "status error";
+            statusEl.textContent = "Error: " + err.message;
+            btn.disabled = false;
+            btn.textContent = "Retry Export";
+          })
+          .exportCommentsToSundial(folderUrl);
+      }
+
+      function escapeHtml(text) {
+        var div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    </script>
+  </body>
+</html>
