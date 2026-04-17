@@ -1,0 +1,28 @@
+# Case D: Roster Export Automation
+
+## Client
+Mr. Ring
+
+## Problem
+Canvas LMS lacks a clean one-click export for class rosters. Current exports are messy CSVs requiring manual cleanup.
+
+## Goal
+A frictionless tool that exports a formatted class roster from Canvas directly into a clean Google Sheet or Doc, handling multi-section classes correctly.
+
+## Tech Stack
+To be decided in discovery (Python + Canvas API OR Chrome extension reading the Canvas page directly). Leaning toward Canvas API approach.
+
+## Team
+Developers: James Lake, Magnus Songhurst
+Club Lead: Cayden Auyang
+
+## Working Rules
+- This folder is scoped to Case D only. Do not modify files outside projects/case-d-roster-export/ unless explicitly asked.
+- Do not commit secrets, API keys, or credentials. Use .env files and add them to .gitignore.
+- Follow the club branch naming convention: case-d/short-description (lowercase, hyphens).
+- Never push directly to main. All changes go through a Pull Request with at least 1 approval.
+- When writing code, prefer clarity over cleverness. These developers are high school students learning collaborative coding.
+- If you generate code the developer cannot explain, flag it and summarize what it does in plain English.
+
+## Definition of Done (Phase 1)
+Architectural decision made (API vs extension), then a working prototype that exports one class roster cleanly into a Google Sheet.

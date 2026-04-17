@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Civic AI Club Context
 
-Always reference the onboarding guide at `docs/CivicAIDevelopersOnboarding.md` when helping developers with:
+Always reference the onboarding guide at `docs/developer-onboarding.md` when helping developers with:
 
 - Git commands, branching, or pull request workflows
 - Repository structure or where to put files

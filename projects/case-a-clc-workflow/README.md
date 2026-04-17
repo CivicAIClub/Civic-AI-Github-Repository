@@ -1,27 +1,21 @@
 # Case A: CLC Workflow Automation
 
 ## Client
-Supported Study Hall staff (CLC)
+Supported Study Hall staff at the Center for Learning and Collaboration (CLC).
 
-## Problem
-Staff spend hours manually logging into individual student Canvas accounts, clicking through course pages, and transcribing assignment data into Google Docs to create weekly to-do lists. It's tedious and doesn't scale.
+## Quick Start
+TODO: developers fill in once setup is defined.
 
-## Goal
-Automate data extraction from Canvas and generate a centralized "Single Source of Truth" (standardized Google Docs or Sheets) for students and advisors.
+## Project Structure
+TODO: document the code layout as files are added.
 
-## Key Technical Challenges
-- Teachers structure Canvas pages differently (Modules vs. Assignments views)
-- Some assignments have missing due dates
-- Student data privacy must be maintained when using AI processing tools
+## Environment Variables
+This project will need secrets for the Canvas LMS API and Google Workspace APIs. Add a `.env.example` file to this folder listing the variable names (no real values). Copy it to `.env` locally and fill in real credentials. `.env` is git-ignored at the repo root — never commit it.
 
 ## Team
-| Role | Name |
-|------|------|
-| Developer | Luke Ryan |
-| Developer | Jack Weinberg |
+- Luke Ryan
+- Jack Weinberg
 
-## Setup
-_To be added once development begins._
-
-## Status
-🟡 Discovery phase
+## Links
+- [Main repo README](../../README.md)
+- [Developer onboarding guide](../../docs/developer-onboarding.md)

@@ -10,7 +10,6 @@ env/
 
 # Node
 node_modules/
-package-lock.json
 
 # Environment & secrets
 .env
@@ -27,6 +26,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+.claude/
 
 # Logs
 *.log

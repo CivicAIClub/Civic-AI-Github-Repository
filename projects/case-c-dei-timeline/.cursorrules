@@ -1,0 +1,28 @@
+# Case C: DEI Interactive Timeline
+
+## Client
+Dr. McCarter, DEI Office
+
+## Problem
+Pomfret's DEI history is fragmented across informal sources and not accessible to the community.
+
+## Goal
+Build an interactive digital experience showcasing Pomfret's DEI history, to be integrated into the main Pomfret School website under the DEI section.
+
+## Tech Stack
+Next.js 14, Sanity CMS, Tailwind CSS, Framer Motion
+
+## Team
+Developers: Zahir Williams, Keke Li
+Club Lead: Cayden Auyang
+
+## Working Rules
+- This folder is scoped to Case C only. Do not modify files outside projects/case-c-dei-timeline/ unless explicitly asked.
+- Do not commit secrets, API keys, or credentials. Use .env files and add them to .gitignore.
+- Follow the club branch naming convention: case-c/short-description (lowercase, hyphens).
+- Never push directly to main. All changes go through a Pull Request with at least 1 approval.
+- When writing code, prefer clarity over cleverness. These developers are high school students learning collaborative coding.
+- If you generate code the developer cannot explain, flag it and summarize what it does in plain English.
+
+## Definition of Done (Phase 1)
+Prototype approved by Dr. McCarter, Sanity CMS connected (no more hardcoded demo data), code hygiene issues resolved (README restored, .env.example added, .claude/ added to .gitignore, 'Career Span' label renamed to 'Year Range', lockfile committed), ready to hand to Communications for integration.

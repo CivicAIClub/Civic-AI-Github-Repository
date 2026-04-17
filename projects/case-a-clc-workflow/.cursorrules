@@ -1,0 +1,28 @@
+# Case A: CLC Workflow Automation
+
+## Client
+Supported Study Hall staff at the Center for Learning and Collaboration (CLC)
+
+## Problem
+CLC staff spend hours each week manually logging into individual student Canvas accounts and transcribing assignment data to create to-do lists in Google Docs.
+
+## Goal
+Automate data extraction from Canvas LMS and generate a centralized Google Doc or Sheet per student that advisors can reference without manual entry.
+
+## Tech Stack
+Python, Canvas LMS API, Google Workspace APIs (Docs, Sheets)
+
+## Team
+Developers: Luke Ryan, Jack Weinberg
+Club Lead: Cayden Auyang
+
+## Working Rules
+- This folder is scoped to Case A only. Do not modify files outside projects/case-a-clc-workflow/ unless explicitly asked.
+- Do not commit secrets, API keys, or credentials. Use .env files and add them to .gitignore.
+- Follow the club branch naming convention: case-a/short-description (lowercase, hyphens).
+- Never push directly to main. All changes go through a Pull Request with at least 1 approval.
+- When writing code, prefer clarity over cleverness. These developers are high school students learning collaborative coding.
+- If you generate code the developer cannot explain, flag it and summarize what it does in plain English.
+
+## Definition of Done (Phase 1)
+A working script that authenticates with the Canvas API and pulls one student's full assignment list into a formatted Google Doc or Sheet.
