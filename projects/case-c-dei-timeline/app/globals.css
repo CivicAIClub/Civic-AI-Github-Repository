@@ -3,38 +3,53 @@
 @tailwind utilities;
 
 :root {
-  /* Pomfret Brand Colors */
-  --navy: #1B2A4A;
-  --navy-light: #2A3D6B;
-  --navy-dark: #111D35;
-  --maroon: #7B2D3B;
-  --maroon-light: #9E3A4C;
-  --maroon-dark: #5C1F2B;
-  --gold: #C4993B;
-  --gold-light: #D4AD5A;
-  --gold-dark: #A67E2C;
-  --amber: #D4943A;
-  --cream: #FAF6F0;
-  --cream-dark: #F0E8D8;
-  --linen: #F5F0E8;
-  --warm-white: #FDFCFA;
-  --charcoal: #2C2C2C;
-  --slate: #4A4A5A;
-  --mist: #E8E4DC;
+  /* Pomfret School Brand — matched to pomfret.org */
+  /* Pure black — POMFRET wordmark and primary headings */
+  --navy: #000000;
+  --navy-light: #1A1A1A;
+  --navy-dark: #000000;
+
+  /* Crimson — primary CTA color on pomfret.org (Inquire/Visit/Apply) */
+  --maroon: #A8172B;
+  --maroon-light: #C93545;
+  --maroon-dark: #7A1520;
+
+  /* Pomfret.org body gray */
+  --pomfret-gray: #7F8588;
+  /* Pomfret.org bold-emphasis navy */
+  --pomfret-navy: #0E2034;
+
+  /* Legacy aliases — still red */
+  --gold: #A8172B;
+  --gold-light: #C93545;
+  --gold-dark: #7A1520;
+  --amber: #A8172B;
+
+  /* Warm cream neutrals — matching pomfret.org backgrounds */
+  --cream: #F0EAE0;
+  --cream-dark: #E5DDC9;
+  --linen: #EDE8DD;
+  --warm-white: #F7F2E8;
+  --charcoal: #000000;
+  --slate: #4A4A4A;
+  --mist: #D9D2C4;
+
+  /* Footer — near-black navy */
+  --footer-bg: #0E1117;
 
   /* Semantic Colors */
   --background: var(--warm-white);
   --foreground: var(--charcoal);
   --primary: var(--navy);
   --secondary: var(--maroon);
-  --accent: var(--gold);
+  --accent: var(--maroon);
   --surface: var(--cream);
   --surface-alt: var(--linen);
   --border: var(--mist);
 
-  /* Typography */
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+  /* Typography — matches Pomfret.org (Poppins + high-contrast serif) */
+  --font-display: 'DM Serif Display', 'Playfair Display', Times, serif;
+  --font-body: 'Poppins', 'DM Sans', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Spacing */
@@ -62,13 +77,14 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    line-height: 1.2;
+    line-height: 1.1;
     color: var(--navy);
+    letter-spacing: -0.01em;
   }
 
   ::selection {
-    background: var(--gold);
-    color: var(--navy-dark);
+    background: var(--maroon);
+    color: var(--warm-white);
   }
 
   :focus-visible {
@@ -99,12 +115,11 @@
   background-size: 4px 4px;
 }
 
-/* Museum-quality image framing */
+/* Museum-quality image framing — simplified to match pomfret.org's subtle shadow */
 .museum-frame {
   box-shadow:
     0 0 0 1px var(--mist),
-    0 2px 8px rgba(27, 42, 74, 0.08),
-    0 8px 24px rgba(27, 42, 74, 0.04);
+    0 1px 3px rgba(14, 17, 23, 0.04);
 }
 
 /* Holographic effect for Famous Figures */
