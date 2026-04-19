@@ -1,40 +1,36 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { SchoolBrandMark } from "./SchoolBrandMark";
 
-function navClassName({ isActive }: { isActive: boolean }) {
-  return isActive ? "nav-link nav-link--active" : "nav-link";
+function navPillClassName({ isActive }: { isActive: boolean }) {
+  return isActive ? "nav-pill nav-pill--active" : "nav-pill";
 }
 
 export function AppLayout() {
   return (
     <div className="app-shell">
-      <aside className="sidebar" aria-label="Main navigation">
-        <div className="sidebar__brand sidebar__brand--with-mark">
-          <SchoolBrandMark variant="compact" className="sidebar__crest" />
-          <div className="sidebar__brand-text">
-            <span className="sidebar__title">Pomfret School</span>
-            <span className="sidebar__subtitle">Music studio</span>
+      <header className="app-top">
+        <div className="app-top__row">
+          <div className="app-top__brand">
+            <SchoolBrandMark variant="compact" className="app-top__crest" />
+            <div className="app-top__brand-text">
+              <span className="app-top__title">Pomfret School</span>
+              <span className="app-top__subtitle">Music studio</span>
+            </div>
           </div>
+          <nav className="app-top__nav" aria-label="Main navigation">
+            <NavLink to="/" end className={navPillClassName}>
+              Dashboard
+            </NavLink>
+            <NavLink to="/students" className={navPillClassName}>
+              Students
+            </NavLink>
+            <NavLink to="/resources" className={navPillClassName}>
+              Resource Hub
+            </NavLink>
+          </nav>
         </div>
-        <nav className="sidebar__nav">
-          <NavLink to="/" end className={navClassName}>
-            Dashboard
-          </NavLink>
-          <NavLink to="/students" className={navClassName}>
-            Students
-          </NavLink>
-          <NavLink to="/resources" className={navClassName}>
-            Resource Hub
-          </NavLink>
-        </nav>
-      </aside>
+      </header>
       <main className="main">
-        <header
-          className="site-header"
-          aria-label="Pomfret School music studio"
-        >
-          <SchoolBrandMark variant="compact" className="site-header__crest" />
-        </header>
         <div className="main__body">
           <Outlet />
         </div>

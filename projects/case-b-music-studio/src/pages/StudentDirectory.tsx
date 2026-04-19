@@ -437,30 +437,34 @@ function StudentDetailPanel({
       </section>
 
       <section className="profile-section profile-section--notes" aria-labelledby="profile-teacher-h">
-        <h3 id="profile-teacher-h" className="profile-section__heading">
-          Teacher notes
-        </h3>
-        <p className="muted profile-teacher-notes-lead">
-          Saved in this browser until a server endpoint exists.
-        </p>
-        <textarea
-          className="input profile-teacher-notes"
-          rows={6}
-          value={teacherNotesDraft}
-          onChange={(e) => handleTeacherNotesChange(e.target.value)}
-          onBlur={flushNotesToLocalStorage}
-          aria-label="Teacher notes for this student"
-          placeholder="Lesson prep, follow-ups, private reminders…"
-        />
-        {(notesSaveStatus === "pending" || notesSaveStatus === "saved") && (
-          <p
-            className="muted profile-teacher-notes-status"
-            role="status"
-            aria-live="polite"
-          >
-            {notesSaveStatus === "pending" ? "Saving…" : "Saved"}
-          </p>
-        )}
+        <div className="notes-card">
+          <div className="notes-card__header">
+            <h3 id="profile-teacher-h" className="profile-section__heading">
+              Teacher notes
+            </h3>
+            <p className="muted profile-teacher-notes-lead">
+              Saved in this browser until a server endpoint exists.
+            </p>
+          </div>
+          <textarea
+            className="profile-teacher-notes"
+            rows={6}
+            value={teacherNotesDraft}
+            onChange={(e) => handleTeacherNotesChange(e.target.value)}
+            onBlur={flushNotesToLocalStorage}
+            aria-label="Teacher notes for this student"
+            placeholder="Lesson prep, follow-ups, private reminders…"
+          />
+          {(notesSaveStatus === "pending" || notesSaveStatus === "saved") && (
+            <p
+              className="profile-teacher-notes-status"
+              role="status"
+              aria-live="polite"
+            >
+              {notesSaveStatus === "pending" ? "Saving…" : "Saved"}
+            </p>
+          )}
+        </div>
       </section>
     </div>
   );
