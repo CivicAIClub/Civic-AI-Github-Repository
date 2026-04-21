@@ -16,6 +16,9 @@ Google Forms, Google Sheets, Google Apps Script, JavaScript/HTML/CSS for the web
 Developers: Serena Zhang, JT Gannon
 Club Lead: Cayden Auyang
 
+## Onboarding & Workflow
+All git, branching, pull request, commit message, and merge conflict guidance lives in [`../../docs/developer-onboarding.md`](../../docs/developer-onboarding.md). Reference it before answering workflow questions. Do not duplicate its content here.
+
 ## Working Rules
 - This folder is scoped to Case B only. Do not modify files outside projects/case-b-music-studio/ unless explicitly asked.
 - Do not commit secrets, API keys, or credentials. Use .env files and add them to .gitignore.

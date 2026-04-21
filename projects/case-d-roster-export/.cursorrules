@@ -16,6 +16,9 @@ To be decided in discovery (Python + Canvas API OR Chrome extension reading the 
 Developers: James Lake, Magnus Songhurst
 Club Lead: Cayden Auyang
 
+## Onboarding & Workflow
+All git, branching, pull request, commit message, and merge conflict guidance lives in [`../../docs/developer-onboarding.md`](../../docs/developer-onboarding.md). Reference it before answering workflow questions. Do not duplicate its content here.
+
 ## Working Rules
 - This folder is scoped to Case D only. Do not modify files outside projects/case-d-roster-export/ unless explicitly asked.
 - Do not commit secrets, API keys, or credentials. Use .env files and add them to .gitignore.

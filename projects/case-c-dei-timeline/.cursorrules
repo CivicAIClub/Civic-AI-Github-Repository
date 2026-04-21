@@ -16,6 +16,9 @@ Next.js 14, Sanity CMS, Tailwind CSS, Framer Motion
 Developers: Zahir Williams, Keke Li
 Club Lead: Cayden Auyang
 
+## Onboarding & Workflow
+All git, branching, pull request, commit message, and merge conflict guidance lives in [`../../docs/developer-onboarding.md`](../../docs/developer-onboarding.md). Reference it before answering workflow questions. Do not duplicate its content here.
+
 ## Working Rules
 - This folder is scoped to Case C only. Do not modify files outside projects/case-c-dei-timeline/ unless explicitly asked.
 - Do not commit secrets, API keys, or credentials. Use .env files and add them to .gitignore.
