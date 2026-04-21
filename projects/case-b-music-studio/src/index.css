@@ -91,12 +91,52 @@ a:hover {
 }
 
 .app-shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
   max-height: 100dvh;
   overflow: hidden;
+}
+
+/* Keyboard / screen reader: jump past navigation (WCAG 2.4.1) */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: var(--space-4);
+  z-index: 100;
+  padding: var(--space-3) var(--space-5);
+  background: var(--surface-elevated);
+  color: var(--text);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-decoration: none !important;
+  box-shadow: var(--shadow-card);
+  transform: translateY(-120%);
+  transition: transform var(--transition-fast);
+}
+
+.skip-link:focus {
+  outline: none;
+  transform: translateY(var(--space-4));
+}
+
+.skip-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+
+  .skip-link:focus {
+    transform: translateY(var(--space-4));
+  }
 }
 
 /* Sticky top: brand + primary route pills */
@@ -125,6 +165,10 @@ a:hover {
   justify-content: space-between;
   gap: var(--space-4) var(--space-5);
   padding: var(--space-4) clamp(var(--space-4), 3vw, var(--space-7));
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .app-top__brand {
@@ -181,7 +225,8 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 1.1rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
   border-radius: var(--radius-pill);
   font-size: 0.9rem;
   font-weight: 550;
@@ -230,6 +275,11 @@ a:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* After “Skip to main”, avoid a persistent focus ring on the landmark */
+#main-content:focus {
+  outline: none;
 }
 
 .main__body {
@@ -457,7 +507,7 @@ a:hover {
   margin-bottom: var(--space-6);
 }
 
-/* Filters row wrapped in .card on Students / Resource Hub */
+/* Filters row wrapped in .card on Students */
 .filters.card {
   background: var(--surface-elevated);
   border: 1px solid var(--border);
@@ -839,102 +889,6 @@ a:hover {
 
 .button-link:hover {
   filter: brightness(1.05);
-}
-
-.resource-hub-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.resource-section__title {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  font-weight: 650;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.resource-section__count {
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.resource-folder-icon {
-  font-size: 1.15rem;
-  line-height: 1;
-}
-
-.resource-card-grid {
-  display: grid;
-  gap: 0.85rem;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-}
-
-.resource-card-grid--flat {
-  margin-top: 0;
-}
-
-.resource-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem 1.1rem;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.35rem 0.85rem;
-  align-items: start;
-  box-shadow: var(--shadow);
-}
-
-.resource-card__icon {
-  grid-row: 1 / -1;
-  font-size: 1.35rem;
-  line-height: 1.2;
-  opacity: 0.85;
-}
-
-.resource-card__category {
-  grid-column: 2;
-  margin: 0;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.resource-card__title {
-  grid-column: 2;
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 650;
-}
-
-.resource-card__desc {
-  grid-column: 2;
-  margin: 0;
-  font-size: 0.92rem;
-  color: var(--muted);
-}
-
-.resource-card__tags {
-  grid-column: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  list-style: none;
-  margin: 0.35rem 0 0;
-  padding: 0;
-}
-
-.resource-card__tags li {
-  font-size: 0.75rem;
-  padding: 0.2rem 0.45rem;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
 }
 
 .availability-badges {

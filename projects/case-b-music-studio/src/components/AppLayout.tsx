@@ -8,6 +8,9 @@ function navPillClassName({ isActive }: { isActive: boolean }) {
 export function AppLayout() {
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <header className="app-top">
         <div className="app-top__row">
           <div className="app-top__brand">
@@ -24,13 +27,10 @@ export function AppLayout() {
             <NavLink to="/students" className={navPillClassName}>
               Students
             </NavLink>
-            <NavLink to="/resources" className={navPillClassName}>
-              Resource Hub
-            </NavLink>
           </nav>
         </div>
       </header>
-      <main className="main">
+      <main id="main-content" className="main" tabIndex={-1}>
         <div className="main__body">
           <Outlet />
         </div>
