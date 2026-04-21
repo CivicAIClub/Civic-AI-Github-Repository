@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoPlanner — CLC Workflow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #718096;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #718096;
+      margin-bottom: 1rem;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #4a5568;
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input, select {
+      padding: 0.55rem 0.75rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: #2d3748;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus, select:focus {
+      border-color: #4299e1;
+      box-shadow: 0 0 0 3px rgba(66,153,225,0.2);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      padding: 0.6rem 1.3rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+    }
+
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:active:not(:disabled) { transform: scale(0.98); }
+
+    .btn-primary { background: #4299e1; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #3182ce; }
+
+    .btn-success { background: #48bb78; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #38a169; }
+
+    .status {
+      margin-top: 0.75rem;
+      font-size: 0.88rem;
+      min-height: 1.3rem;
+    }
+
+    .status.loading { color: #718096; }
+    .status.error   { color: #e53e3e; font-weight: 600; }
+    .status.success { color: #276749; font-weight: 600; }
+
+    /* Preview section */
+    .preview-section { display: none; }
+    .preview-section.visible { display: block; }
+
+    .week-block { margin-bottom: 1.5rem; }
+
+    .week-label {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 0.6rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+
+    thead th {
+      background: #2d3748;
+      color: #fff;
+      padding: 0.5rem 0.65rem;
+      text-align: left;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    tbody tr { border-bottom: 1px solid #edf2f7; }
+    tbody tr:hover { background: #f7fafc; }
+
+    tbody td {
+      padding: 0.45rem 0.65rem;
+      vertical-align: middle;
+    }
+
+    /* Day banner rows */
+    .day-row td {
+      background: #a0aec0 !important;
+      color: #1a202c;
+      font-weight: 700;
+      padding: 0.3rem 0.65rem;
+    }
+
+    /* Priority badges */
+    .priority-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .priority-Today     { background: #FED7D7; color: #822727; }
+    .priority-Tomorrow  { background: #FEEBC8; color: #7B341E; }
+    .priority-Due-Soon  { background: #FEFCBF; color: #744210; }
+    .priority-This-Week { background: #C6F6D5; color: #1C4532; }
+    .priority-Upcoming  { background: #BEE3F8; color: #1A365D; }
+
+    .assignment-link {
+      color: #3182ce;
+      text-decoration: none;
+    }
+    .assignment-link:hover { text-decoration: underline; }
+
+    /* Doc result */
+    .doc-result {
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #f0fff4;
+      border: 1px solid #9ae6b4;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .doc-result.visible { display: flex; }
+
+    .doc-result a {
+      font-weight: 700;
+      color: #276749;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    .doc-result a:hover { text-decoration: underline; }
+
+    .doc-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+    .empty-week {
+      color: #a0aec0;
+      font-style: italic;
+      padding: 0.5rem 0;
+      font-size: 0.88rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AutoPlanner</h1>
+    <p class="subtitle">
+      Fetch your Canvas assignments and generate a formatted weekly planner as a Google Doc.
+    </p>
+
+    <!-- ── Configuration ─────────────────────────────────────── -->
+    <div class="card">
+      <h2>Configuration</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="baseUrl">Canvas Base URL</label>
+          <input
+            id="baseUrl"
+            type="url"
+            placeholder="https://school.instructure.com"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="form-group">
+          <label for="apiToken">Canvas API Token</label>
+          <input
+            id="apiToken"
+            type="password"
+            placeholder="Paste your token here"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="max-width: 220px;">
+          <label for="weeksAhead">Weeks to Fetch</label>
+          <select id="weeksAhead">
+            <option value="1">Current week only</option>
+            <option value="2" selected>Next 2 weeks</option>
+            <option value="3">Next 3 weeks</option>
+            <option value="4">Next 4 weeks</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="fetchBtn" onclick="fetchAssignments()">
+          Fetch Assignments
+        </button>
+      </div>
+      <p class="status" id="fetchStatus"></p>
+    </div>
+
+    <!-- ── Preview ────────────────────────────────────────────── -->
+    <div class="card preview-section" id="previewSection">
+      <h2>Preview — <span id="previewCount"></span></h2>
+      <div id="previewContent"></div>
+
+      <div class="btn-row" style="margin-top: 1.25rem;">
+        <button class="btn-success" id="generateBtn" onclick="generateDoc()">
+          Generate Google Doc
+        </button>
+      </div>
+      <p class="status" id="generateStatus"></p>
+
+      <div class="doc-result" id="docResult">
+        <span class="doc-icon">📄</span>
+        <a id="docLink" href="#" target="_blank" rel="noopener noreferrer">
+          Open your Weekly Planner in Google Docs →
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // FastAPI backend running locally
+    const API_BASE = "http://localhost:8000";
+
+    // ── Persist config in localStorage so it survives page refreshes ──
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("baseUrl").value  = localStorage.getItem("canvas_base_url") || "";
+      document.getElementById("apiToken").value = localStorage.getItem("canvas_api_token") || "";
+    });
+
+    function saveConfig() {
+      localStorage.setItem("canvas_base_url",  document.getElementById("baseUrl").value.trim());
+      localStorage.setItem("canvas_api_token", document.getElementById("apiToken").value.trim());
+    }
+
+    // The fetched schedule is stored here so the generate step can use it
+    // without a second Canvas fetch.
+    let currentSchedule = null;
+
+    // ──────────────────────────────────────────────────────────────────
+    // Step 1: Fetch assignments from the backend
+    // ──────────────────────────────────────────────────────────────────
+    async function fetchAssignments() {
+      saveConfig();
+
+      const baseUrl   = document.getElementById("baseUrl").value.trim();
+      const apiToken  = document.getElementById("apiToken").value.trim();
+      const weeksAhead = document.getElementById("weeksAhead").value;
+
+      if (!baseUrl || !apiToken) {
+        setStatus("fetchStatus", "error", "Please enter your Canvas Base URL and API Token.");
+        return;
+      }
+
+      setStatus("fetchStatus", "loading", "Fetching assignments from Canvas...");
+      setButtonDisabled("fetchBtn", true);
+
+      // Reset previous results
+      document.getElementById("previewSection").classList.remove("visible");
+      document.getElementById("docResult").classList.remove("visible");
+      currentSchedule = null;
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/assignments?weeks_ahead=${weeksAhead}`
+            + `&canvas_token=${encodeURIComponent(apiToken)}`
+            + `&canvas_base_url=${encodeURIComponent(baseUrl)}`,
+          { method: "GET" }
+        );
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        currentSchedule = data;
+
+        renderPreview(data);
+        const weekCount = Object.keys(data.weeks || {}).length;
+        setStatus(
+          "fetchStatus", "success",
+          `Loaded ${data.total_assignments} assignment(s) across ${weekCount} week(s).`
+        );
+      } catch (err) {
+        setStatus("fetchStatus", "error", `Error: ${err.message}`);
+      } finally {
+        setButtonDisabled("fetchBtn", false);
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Step 2: Generate Google Doc
+    // ──────────────────────────────────────────────────────────────────
+    async function generateDoc() {
+      if (!currentSchedule) {
+        setStatus("generateStatus", "error", "Fetch assignments first.");
+        return;
+      }
+
+      setStatus(
+        "generateStatus", "loading",
+        "Creating Google Doc — this may take 10–20 seconds on first run..."
+      );
+      setButtonDisabled("generateBtn", true);
+      document.getElementById("docResult").classList.remove("visible");
+
+      try {
+        const res = await fetch(`${API_BASE}/api/generate-doc`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentSchedule),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const docUrl = data.docUrl;
+
+        document.getElementById("docLink").href = docUrl;
+        document.getElementById("docResult").classList.add("visible");
+        setStatus("generateStatus", "success", "Google Doc created successfully.");
+      } catch (err) {
+        setStatus("generateStatus", "error", `Error: ${err.message}`);
+      } finally {
+        setButtonDisabled("generateBtn", false);
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Render the assignment preview table
+    // ──────────────────────────────────────────────────────────────────
+    function renderPreview(data) {
+      const container = document.getElementById("previewContent");
+      container.innerHTML = "";
+
+      const weeks = data.weeks || {};
+      const weekKeys = Object.keys(weeks).sort();
+
+      document.getElementById("previewCount").textContent =
+        `${data.total_assignments} assignment(s)`;
+
+      if (weekKeys.length === 0) {
+        container.innerHTML =
+          '<p class="empty-week">No upcoming assignments found.</p>';
+        document.getElementById("previewSection").classList.add("visible");
+        return;
+      }
+
+      weekKeys.forEach(weekKey => {
+        const weekData = weeks[weekKey];
+        const block = document.createElement("div");
+        block.className = "week-block";
+
+        // Week heading
+        const heading = document.createElement("div");
+        heading.className = "week-label";
+        heading.textContent = "Week of " + weekData.week_label;
+        block.appendChild(heading);
+
+        // Table
+        const table = document.createElement("table");
+        const tbodyId = `tbody-${weekKey.replace(/-/g, "")}`;
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Assignment</th>
+              <th>Course</th>
+              <th>Due Time</th>
+              <th>Priority</th>
+            </tr>
+          </thead>
+          <tbody id="${tbodyId}"></tbody>
+        `;
+        block.appendChild(table);
+        container.appendChild(block);
+
+        const tbody = document.getElementById(tbodyId);
+        const days = weekData.days || [];
+        let hasRows = false;
+
+        days.forEach(dayObj => {
+          const assignments = dayObj.assignments || [];
+          if (assignments.length === 0) return;
+          hasRows = true;
+
+          // Day banner row
+          const dayTr = document.createElement("tr");
+          dayTr.className = "day-row";
+          dayTr.innerHTML = `<td colspan="5">${escHtml(dayObj.day)}</td>`;
+          tbody.appendChild(dayTr);
+
+          assignments.forEach(a => {
+            const tr = document.createElement("tr");
+
+            // Priority badge CSS class (spaces → dashes for CSS class name)
+            const priorityClass = "priority-" + (a.priority || "Upcoming").replace(/\s+/g, "-");
+
+            // Assignment cell: link if URL available, plain text otherwise
+            const assignmentCell = a.url
+              ? `<a class="assignment-link" href="${escHtml(a.url)}" target="_blank" rel="noopener noreferrer">${escHtml(a.assignment)}</a>`
+              : escHtml(a.assignment);
+
+            tr.innerHTML = `
+              <td></td>
+              <td>${assignmentCell}</td>
+              <td>${escHtml(a.course)}</td>
+              <td>${escHtml(a.due_time)}</td>
+              <td><span class="priority-badge ${priorityClass}">${escHtml(a.priority)}</span></td>
+            `;
+            tbody.appendChild(tr);
+          });
+        });
+
+        if (!hasRows) {
+          const emptyTr = document.createElement("tr");
+          emptyTr.innerHTML =
+            `<td colspan="5" class="empty-week">No assignments this week.</td>`;
+          tbody.appendChild(emptyTr);
+        }
+      });
+
+      document.getElementById("previewSection").classList.add("visible");
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Utilities
+    // ──────────────────────────────────────────────────────────────────
+
+    function setStatus(id, type, message) {
+      const el = document.getElementById(id);
+      el.className = "status " + type;
+      el.textContent = message;
+    }
+
+    function setButtonDisabled(id, disabled) {
+      document.getElementById(id).disabled = disabled;
+    }
+
+    // Escape user/API-sourced strings before inserting into innerHTML
+    function escHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+  </script>
+</body>
+</html>
