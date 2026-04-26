@@ -36,6 +36,11 @@ function createAllCommentsDocs(coursesData, gradingPeriod) {
  * Creates a single Google Doc for one class, with a tab per student.
  * Uses the advanced Google Docs API for tab creation.
  *
+ * If anything in the tab path fails (unsupported API, partial batch failure),
+ * the partially-built doc is trashed and a fresh doc is created for the
+ * page-based fallback. This guarantees the fallback always operates on a
+ * clean doc.
+ *
  * @param {Object} course - {name, students: [{name, id}]}
  * @param {string} gradingPeriod
  * @param {Folder} folder - Google Drive folder to place the doc in
@@ -43,36 +48,54 @@ function createAllCommentsDocs(coursesData, gradingPeriod) {
  */
 function createClassDoc_(course, gradingPeriod, folder) {
   var docTitle = course.name + ' — ' + gradingPeriod;
+  var docId = null;
 
-  // Create doc via advanced Docs API (gives us access to tab IDs)
-  var doc = Docs.Documents.create({ title: docTitle });
-  var docId = doc.documentId;
+  try {
+    // Try the tab-based approach first
+    var doc = Docs.Documents.create({ title: docTitle });
+    docId = doc.documentId;
+    DriveApp.getFileById(docId).moveTo(folder);
 
-  // Move to the shared folder
-  var file = DriveApp.getFileById(docId);
-  file.moveTo(folder);
+    if (course.students.length > 0) {
+      buildDocWithTabs_(docId, doc, course.students);
+    }
 
-  if (course.students.length === 0) {
     return {
       name: course.name,
-      url: 'https://docs.google.com/document/d/' + docId + '/edit',
-      studentCount: 0
+      url: docUrlFromId_(docId),
+      studentCount: course.students.length
+    };
+  } catch (tabError) {
+    Logger.log('Tab approach failed, using page-based fallback: ' + tabError.message);
+
+    // Trash the partially-built doc so the fallback gets a clean slate
+    if (docId) {
+      try {
+        DriveApp.getFileById(docId).setTrashed(true);
+      } catch (cleanupError) {
+        Logger.log('Failed to trash partial doc: ' + cleanupError.message);
+      }
+    }
+
+    // Create a fresh doc using DocumentApp for the fallback
+    var fallbackDoc = DocumentApp.create(docTitle);
+    var fallbackId = fallbackDoc.getId();
+    DriveApp.getFileById(fallbackId).moveTo(folder);
+
+    if (course.students.length > 0) {
+      buildDocWithPages_(fallbackId, course, gradingPeriod);
+    }
+
+    return {
+      name: course.name,
+      url: docUrlFromId_(fallbackId),
+      studentCount: course.students.length
     };
   }
+}
 
-  // Try tab-based approach first, fall back to page-based if tabs aren't supported
-  try {
-    buildDocWithTabs_(docId, doc, course.students);
-  } catch (tabError) {
-    Logger.log('Tab creation not supported, falling back to pages: ' + tabError.message);
-    buildDocWithPages_(docId, course, gradingPeriod);
-  }
-
-  return {
-    name: course.name,
-    url: 'https://docs.google.com/document/d/' + docId + '/edit',
-    studentCount: course.students.length
-  };
+function docUrlFromId_(docId) {
+  return 'https://docs.google.com/document/d/' + docId + '/edit';
 }
 
 // ─────────────────────────────────────────────
@@ -82,28 +105,33 @@ function createClassDoc_(course, gradingPeriod, folder) {
 /**
  * Populates a doc with one tab per student using the advanced Docs API.
  * Each tab is titled with the student's name and contains a comment area.
+ *
+ * Uses two atomic batchUpdate calls:
+ *   1. Create/rename all tabs (atomic — Docs API rolls back the whole batch on any failure)
+ *   2. Insert all content into all tabs (also atomic)
+ *
+ * If either batch fails, the caller (createClassDoc_) trashes the doc and
+ * falls back to the page-based approach on a fresh doc.
  */
 function buildDocWithTabs_(docId, doc, students) {
+  var COMMENT_LABEL = 'Comment:';
   var defaultTabId = doc.tabs[0].tabProperties.tabId;
 
-  // Step 1: Rename default tab to first student, create tabs for the rest
-  var tabRequests = [];
-
-  tabRequests.push({
-    updateTabProperties: {
-      tabProperties: { tabId: defaultTabId, title: students[0].name },
-      fields: 'title'
+  // ── Step 1: Atomically create/rename all tabs ──
+  var tabRequests = [
+    {
+      updateTabProperties: {
+        tabProperties: { tabId: defaultTabId, title: students[0].name },
+        fields: 'title'
+      }
     }
-  });
+  ];
 
   for (var i = 1; i < students.length; i++) {
     tabRequests.push({
       createTab: {
         tab: {
-          tabProperties: {
-            title: students[i].name,
-            index: i
-          }
+          tabProperties: { title: students[i].name, index: i }
         }
       }
     });
@@ -111,64 +139,71 @@ function buildDocWithTabs_(docId, doc, students) {
 
   Docs.Documents.batchUpdate({ requests: tabRequests }, docId);
 
-  // Step 2: Re-read doc to get all tab IDs (new tabs have server-assigned IDs)
-  var updatedDoc = Docs.Documents.get(docId);
+  // ── Step 2: Re-read doc with tabs content to discover server-assigned tab IDs ──
+  // CRITICAL: includeTabsContent=true is required, otherwise tabs may be
+  // missing or returned without their full structure.
+  var updatedDoc = Docs.Documents.get(docId, { includeTabsContent: true });
 
-  // Step 3: Insert content into each tab
+  if (!updatedDoc.tabs || updatedDoc.tabs.length === 0) {
+    throw new Error('Docs API returned no tabs after creation. Tab creation may not be supported on this Apps Script runtime.');
+  }
+
+  // ── Step 3: Build ONE atomic batch of all content inserts + styling ──
+  // Text is inserted in reverse order (label first, then name) because each
+  // insertText at index 1 pushes existing content forward.
+  var contentRequests = [];
+
   for (var j = 0; j < updatedDoc.tabs.length; j++) {
     var tab = updatedDoc.tabs[j];
     var tabId = tab.tabProperties.tabId;
     var studentName = tab.tabProperties.title;
 
-    var contentRequests = [
-      // Insert the text (inserted in reverse order since index stays at 1)
-      {
-        insertText: {
-          text: '\n\nComment:\n\n\n',
-          location: { index: 1, tabId: tabId }
-        }
-      },
-      {
-        insertText: {
-          text: studentName,
-          location: { index: 1, tabId: tabId }
-        }
-      },
-      // Style the student name as a heading
-      {
-        updateTextStyle: {
-          textStyle: {
-            bold: true,
-            fontSize: { magnitude: 16, unit: 'PT' }
-          },
-          range: {
-            startIndex: 1,
-            endIndex: 1 + studentName.length,
-            tabId: tabId
-          },
-          fields: 'bold,fontSize'
-        }
-      },
-      // Style "Comment:" label
-      {
-        updateTextStyle: {
-          textStyle: {
-            bold: true,
-            fontSize: { magnitude: 11, unit: 'PT' },
-            foregroundColor: {
-              color: { rgbColor: { red: 0.4, green: 0.4, blue: 0.4 } }
-            }
-          },
-          range: {
-            startIndex: 1 + studentName.length + 2,
-            endIndex: 1 + studentName.length + 2 + 8,
-            tabId: tabId
-          },
-          fields: 'bold,fontSize,foregroundColor'
-        }
+    // Insert label first (so it ends up after the name once name is inserted at index 1)
+    contentRequests.push({
+      insertText: {
+        text: '\n\n' + COMMENT_LABEL + '\n\n\n',
+        location: { index: 1, tabId: tabId }
       }
-    ];
+    });
+    contentRequests.push({
+      insertText: {
+        text: studentName,
+        location: { index: 1, tabId: tabId }
+      }
+    });
 
+    // Final layout: "<studentName>\n\n<COMMENT_LABEL>\n\n\n" starting at index 1
+    var nameStart = 1;
+    var nameEnd = nameStart + studentName.length;
+    var labelStart = nameEnd + 2; // for the "\n\n" separator
+    var labelEnd = labelStart + COMMENT_LABEL.length;
+
+    contentRequests.push({
+      updateTextStyle: {
+        textStyle: {
+          bold: true,
+          fontSize: { magnitude: 16, unit: 'PT' }
+        },
+        range: { startIndex: nameStart, endIndex: nameEnd, tabId: tabId },
+        fields: 'bold,fontSize'
+      }
+    });
+    contentRequests.push({
+      updateTextStyle: {
+        textStyle: {
+          bold: true,
+          fontSize: { magnitude: 11, unit: 'PT' },
+          foregroundColor: {
+            color: { rgbColor: { red: 0.4, green: 0.4, blue: 0.4 } }
+          }
+        },
+        range: { startIndex: labelStart, endIndex: labelEnd, tabId: tabId },
+        fields: 'bold,fontSize,foregroundColor'
+      }
+    });
+  }
+
+  if (contentRequests.length > 0) {
     Docs.Documents.batchUpdate({ requests: contentRequests }, docId);
   }
 }

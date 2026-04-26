@@ -47,14 +47,31 @@ function getRoster(baseUrl, token, courseId) {
 /**
  * Fetches all pages of a paginated Canvas API endpoint.
  * Canvas returns a max of 100 results per page with Link headers for pagination.
+ *
+ * SECURITY: Validates that pagination URLs stay on the original host so a
+ * malicious response can't redirect the bearer token to an attacker domain.
+ *
  * @param {string} url - Initial API URL
  * @param {string} token - Canvas API access token
  * @returns {Array} All results combined
  */
 function fetchAllPages(url, token) {
+  var initialHost = extractHost_(url);
+  if (!initialHost) {
+    throw new Error('Invalid Canvas URL: ' + url);
+  }
+
   var allResults = [];
 
   while (url) {
+    var nextHost = extractHost_(url);
+    if (nextHost !== initialHost) {
+      throw new Error(
+        'Pagination redirected to a different host (' + nextHost + ' vs ' + initialHost +
+        '). Refusing to forward the API token.'
+      );
+    }
+
     var response = UrlFetchApp.fetch(url, {
       headers: { 'Authorization': 'Bearer ' + token },
       muteHttpExceptions: true
@@ -71,6 +88,15 @@ function fetchAllPages(url, token) {
   }
 
   return allResults;
+}
+
+/**
+ * Extracts the lowercase host (including port) from a URL.
+ * Returns null if the URL is malformed.
+ */
+function extractHost_(url) {
+  var match = url.match(/^https?:\/\/([^\/?#]+)/i);
+  return match ? match[1].toLowerCase() : null;
 }
 
 /**

@@ -126,10 +126,39 @@ function getSundialAccessToken_() {
 
 /**
  * Returns the OAuth redirect URI for this Apps Script project.
- * @returns {string} Redirect URI
+ *
+ * IMPORTANT: This requires the Apps Script project to be deployed as a Web App.
+ * Container-bound scripts (the typical case here, since this project lives
+ * inside a Google Sheet) return null from ScriptApp.getService().getUrl()
+ * unless they have an active Web App deployment.
+ *
+ * Setup steps:
+ *   1. In the Apps Script editor: Deploy → New deployment
+ *   2. Type: Web app
+ *   3. Execute as: User accessing the web app
+ *   4. Who has access: Anyone with Google account
+ *   5. Click Deploy and copy the resulting URL
+ *   6. Register that URL as the redirect URI in the Blackbaud developer portal
+ *
+ * @returns {string} The Web App URL to use as the OAuth redirect URI
+ * @throws {Error} If the script has not been deployed as a Web App
  */
 function getRedirectUri_() {
-  return ScriptApp.getService().getUrl();
+  var url = ScriptApp.getService().getUrl();
+  if (!url) {
+    throw new Error(
+      'OAuth redirect URI is unavailable.\n\n' +
+      'This script must be deployed as a Web App for Sundial OAuth to work.\n\n' +
+      'In the Apps Script editor:\n' +
+      '  1. Deploy → New deployment\n' +
+      '  2. Type: Web app\n' +
+      '  3. Execute as: User accessing the web app\n' +
+      '  4. Who has access: Anyone with Google account\n' +
+      '  5. Click Deploy\n\n' +
+      'Then register the resulting URL in the Blackbaud developer portal as the redirect URI.'
+    );
+  }
+  return url;
 }
 
 // ─────────────────────────────────────────────
