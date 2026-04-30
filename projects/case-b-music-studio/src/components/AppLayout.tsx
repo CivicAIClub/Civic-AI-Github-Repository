@@ -1,5 +1,10 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { SchoolBrandMark } from "./SchoolBrandMark";
+import {
+  EXTERNAL_LINKS,
+  EXTERNAL_LINK_ORDER,
+  EXTERNAL_LINK_SHORT_LABEL,
+} from "../lib/externalLinks";
 
 function navPillClassName({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-pill nav-pill--active" : "nav-pill";
@@ -27,6 +32,31 @@ export function AppLayout() {
             <NavLink to="/students" className={navPillClassName}>
               Students
             </NavLink>
+            <span
+              className="app-top__nav-divider"
+              aria-hidden="true"
+              role="presentation"
+            />
+            {EXTERNAL_LINK_ORDER.map((key) => {
+              const link = EXTERNAL_LINKS[key];
+              const shortLabel = EXTERNAL_LINK_SHORT_LABEL[key];
+              return (
+                <a
+                  key={key}
+                  className="nav-pill nav-pill--external"
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={link.label}
+                  aria-label={`${link.label} (opens in a new tab)`}
+                >
+                  {shortLabel}
+                  <span className="nav-pill__external-icon" aria-hidden="true">
+                    ↗
+                  </span>
+                </a>
+              );
+            })}
           </nav>
         </div>
       </header>
