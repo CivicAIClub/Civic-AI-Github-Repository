@@ -17,33 +17,13 @@ import {
   lessonStableKey,
   partitionStudentLessons,
 } from "../lib/lessonScheduleUtils";
+import {
+  formatLessonDateLong,
+  formatLessonDateShort,
+} from "../lib/dateUtils";
 import type { ScheduledLesson, Student } from "../types";
 
-function formatDateShort(value: string) {
-  if (!value.trim()) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-/** Handles ISO from the API and raw Timestamp strings from the sheet */
-function formatDateLong(value: string) {
-  const d = new Date(value);
-  if (!Number.isNaN(d.getTime())) {
-    return d.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }
-  const t = value.trim();
-  return t.length ? t : "—";
-}
+const RECENT_LESSONS_INITIAL_VISIBLE = 5;
 
 type SheetFetchState =
   | { status: "idle" }
@@ -63,14 +43,20 @@ type ScheduleFetchState =
   | { status: "success"; lessons: ScheduledLesson[] }
   | { status: "error"; message: string };
 
-/** Read-only: older session-only notes before per-student localStorage keys */
-const LEGACY_TEACHER_NOTES_SESSION_PREFIX =
-  "musicStudio.caseB.teacherNotes.v1:";
+/**
+ * Storage keys are namespaced under `caseB.` so other Civic AI Club projects
+ * deployed under the same `civicaiclub.github.io` origin don't collide on
+ * unprefixed keys like `student-notes-<email>`.
+ */
+const TEACHER_NOTES_STORAGE_PREFIX = "caseB.teacherNotes.v1:";
+/** Read-only: keys written by older builds. New writes always use the prefixed key. */
+const LEGACY_LOCAL_NOTES_PREFIX = "student-notes-";
+const LEGACY_SESSION_NOTES_PREFIX = "musicStudio.caseB.teacherNotes.v1:";
 
 const NOTES_AUTOSAVE_MS = 400;
 
 function studentNotesStorageKey(studentId: string): string {
-  return `student-notes-${studentId}`;
+  return `${TEACHER_NOTES_STORAGE_PREFIX}${studentId}`;
 }
 
 function writeStudentNotesLocal(studentId: string, value: string): void {
@@ -92,10 +78,14 @@ function readStoredTeacherNotes(studentId: string, fallback: string): string {
       studentNotesStorageKey(studentId)
     );
     if (fromLocal !== null) return fromLocal;
-    const legacy = sessionStorage.getItem(
-      `${LEGACY_TEACHER_NOTES_SESSION_PREFIX}${studentId}`
+    const legacyLocal = localStorage.getItem(
+      `${LEGACY_LOCAL_NOTES_PREFIX}${studentId}`
     );
-    if (legacy !== null) return legacy;
+    if (legacyLocal !== null) return legacyLocal;
+    const legacySession = sessionStorage.getItem(
+      `${LEGACY_SESSION_NOTES_PREFIX}${studentId}`
+    );
+    if (legacySession !== null) return legacySession;
   } catch {
     /* private mode */
   }
@@ -106,7 +96,7 @@ function BookedLessonSummary({ lesson }: { lesson: ScheduledLesson }) {
   const timeRange = formatLessonTimeRangeForDisplay(lesson);
   return (
     <p className="profile-booked__line">
-      <span className="strong">{formatDateLong(lesson.lessonDate)}</span>
+      <span className="strong">{formatLessonDateLong(lesson.lessonDate)}</span>
       {" · "}
       {formatLessonBlockDisplay(lesson)}
       {" · "}
@@ -137,7 +127,7 @@ function BookedLessonListItem({ lesson }: { lesson: ScheduledLesson }) {
   const timeRange = formatLessonTimeRangeForDisplay(lesson);
   return (
     <div>
-      <span className="strong">{formatDateLong(lesson.lessonDate)}</span>
+      <span className="strong">{formatLessonDateLong(lesson.lessonDate)}</span>
       <span className="muted">
         {" "}
         · {formatLessonBlockDisplay(lesson)} · {lesson.status.trim() || "—"}
@@ -183,6 +173,7 @@ function StudentDetailPanel({
   const [notesSaveStatus, setNotesSaveStatus] = useState<
     "idle" | "pending" | "saved"
   >("idle");
+  const [showAllRecent, setShowAllRecent] = useState(false);
 
   const teacherNotesDraftRef = useRef(teacherNotesDraft);
   teacherNotesDraftRef.current = teacherNotesDraft;
@@ -196,6 +187,7 @@ function StudentDetailPanel({
     setTeacherNotesDraft(next);
     teacherNotesDraftRef.current = next;
     setNotesSaveStatus("idle");
+    setShowAllRecent(false);
   }, [student.id, student.teacherNotes]);
 
   const clearNotesSaveTimeout = useCallback(() => {
@@ -278,11 +270,11 @@ function StudentDetailPanel({
           </div>
           <div>
             <dt>Date</dt>
-            <dd>{formatDateLong(student.formDate)}</dd>
+            <dd>{formatLessonDateLong(student.formDate)}</dd>
           </div>
           <div>
             <dt>Last updated</dt>
-            <dd>{formatDateLong(student.lastUpdated)}</dd>
+            <dd>{formatLessonDateLong(student.lastUpdated)}</dd>
           </div>
         </dl>
       </section>
@@ -416,20 +408,54 @@ function StudentDetailPanel({
                 </ul>
               )}
 
-              <p className="profile-booked__sub">Recent</p>
+              <p className="profile-booked__sub">
+                Recent
+                {schedulePartition.recentLessons.length > 0 && (
+                  <span className="muted">
+                    {" "}
+                    ·{" "}
+                    {showAllRecent ||
+                    schedulePartition.recentLessons.length <=
+                      RECENT_LESSONS_INITIAL_VISIBLE
+                      ? `${schedulePartition.recentLessons.length} total`
+                      : `showing ${RECENT_LESSONS_INITIAL_VISIBLE} of ${schedulePartition.recentLessons.length}`}
+                  </span>
+                )}
+              </p>
               {schedulePartition.recentLessons.length === 0 ? (
                 <p className="muted profile-booked__line">—</p>
               ) : (
-                <ul className="lesson-schedule-list lesson-schedule-list--compact">
-                  {schedulePartition.recentLessons.map((lesson, i) => (
-                    <li
-                      key={lessonStableKey(lesson, i)}
-                      className="lesson-schedule-list__row"
+                <>
+                  <ul className="lesson-schedule-list lesson-schedule-list--compact">
+                    {(showAllRecent
+                      ? schedulePartition.recentLessons
+                      : schedulePartition.recentLessons.slice(
+                          0,
+                          RECENT_LESSONS_INITIAL_VISIBLE
+                        )
+                    ).map((lesson, i) => (
+                      <li
+                        key={lessonStableKey(lesson, i)}
+                        className="lesson-schedule-list__row"
+                      >
+                        <BookedLessonListItem lesson={lesson} />
+                      </li>
+                    ))}
+                  </ul>
+                  {schedulePartition.recentLessons.length >
+                    RECENT_LESSONS_INITIAL_VISIBLE && (
+                    <button
+                      type="button"
+                      className="button-ghost"
+                      onClick={() => setShowAllRecent((prev) => !prev)}
+                      aria-expanded={showAllRecent}
                     >
-                      <BookedLessonListItem lesson={lesson} />
-                    </li>
-                  ))}
-                </ul>
+                      {showAllRecent
+                        ? "Show fewer"
+                        : `Show all ${schedulePartition.recentLessons.length}`}
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
@@ -522,20 +548,33 @@ export function StudentDirectory() {
   }, [rosterRetry]);
 
   const instruments = useMemo(() => {
-    return [...new Set(students.map((s) => s.instrument))].sort();
+    return [...new Set(students.map((s) => s.instrument))]
+      .filter((v) => v && v !== "—")
+      .sort();
   }, [students]);
 
   const levels = useMemo(() => {
-    return [...new Set(students.map((s) => s.currentLevel))].sort();
+    return [...new Set(students.map((s) => s.currentLevel))]
+      .filter((v) => v && v !== "—")
+      .sort();
   }, [students]);
 
+  /**
+   * Match the URL's `?student=` value to a roster student by lowercased
+   * email. Email casing can drift between Form Responses 1 and Lesson
+   * Schedule (the dashboard's "Upcoming lessons" link uses whatever the
+   * Lesson Schedule sheet has), so a case-sensitive lookup would silently
+   * leave the panel empty.
+   */
   const syncSelectionFromUrl = useCallback(() => {
     const fromUrl = searchParams.get("student");
     if (!fromUrl) {
       setSelectedId(null);
       return;
     }
-    if (students.some((s) => s.id === fromUrl)) setSelectedId(fromUrl);
+    const target = fromUrl.trim().toLowerCase();
+    const match = students.find((s) => s.id.toLowerCase() === target);
+    if (match) setSelectedId(match.id);
     else setSelectedId(null);
   }, [searchParams, students]);
 
@@ -780,7 +819,7 @@ export function StudentDirectory() {
                   <span>{s.currentLevel}</span>
                 </span>
                 <span className="student-card__updated muted">
-                  Updated {formatDateShort(s.lastUpdated)}
+                  Updated {formatLessonDateShort(s.lastUpdated)}
                 </span>
               </button>
             ))}

@@ -15,24 +15,13 @@ import {
   saveProfileSnapshots,
   type DashboardProfileUpdate,
 } from "../lib/studentProfileSnapshots";
+import { formatLessonDateLong } from "../lib/dateUtils";
 import type { ScheduledLesson, Student } from "../types";
 
 function clipText(s: string, max = 160): string {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max)}…`;
-}
-
-function formatLessonDate(value: string) {
-  if (!value.trim()) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value.trim() || "—";
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export function Dashboard() {
@@ -122,7 +111,11 @@ export function Dashboard() {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return students
-      .filter((s) => s.name.toLowerCase().includes(q))
+      .filter((s) => {
+        if (s.name.toLowerCase().includes(q)) return true;
+        const email = (s.contactEmail ?? s.id).toLowerCase();
+        return email.includes(q);
+      })
       .slice(0, 8);
   }, [query, students]);
 
@@ -147,13 +140,13 @@ export function Dashboard() {
         <section className="card">
           <h2 className="card__title">Find a student</h2>
           <label className="label" htmlFor="dash-search">
-            Search by name
+            Search by name or email
           </label>
           <input
             id="dash-search"
             type="search"
             className="input"
-            placeholder="Type a name…"
+            placeholder="Type a name or email…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoComplete="off"
@@ -318,7 +311,7 @@ export function Dashboard() {
                         {lesson.studentName.trim() || lesson.studentEmail}
                       </span>
                       <span className="muted lesson-schedule-list__meta">
-                        {formatLessonDate(lesson.lessonDate)}
+                        {formatLessonDateLong(lesson.lessonDate)}
                       </span>
                       <span className="lesson-schedule-list__block">
                         {formatLessonBlockDisplay(lesson)}

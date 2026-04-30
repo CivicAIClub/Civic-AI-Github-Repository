@@ -1,12 +1,18 @@
 import type { ScheduledLesson } from "../types";
+import { parseSheetDate } from "./dateUtils";
 
 /** Trim; comparisons use lowercase where noted. */
 export function normalizeStatus(status: string): string {
   return status.trim();
 }
 
-function statusLower(status: string): string {
-  return normalizeStatus(status).toLowerCase();
+/**
+ * Treat a blank status cell as "scheduled" so a teacher who forgets to fill
+ * the Status column still sees the lesson on the dashboard.
+ */
+function statusLowerOrDefault(status: string): string {
+  const s = normalizeStatus(status).toLowerCase();
+  return s.length ? s : "scheduled";
 }
 
 /** Start of calendar day in local timezone (for school block scheduling). */
@@ -17,15 +23,32 @@ export function startOfLocalDay(d: Date): Date {
 }
 
 /**
- * Parse lesson date for comparisons. Uses `lesson.lessonDate` (ISO or sheet string)
- * and ignores invalid values.
+ * Parse lesson date for comparisons. Handles "yyyy-MM-dd" (date-only sheet
+ * cells) as a local date, and ISO/other strings via the standard Date
+ * constructor. Invalid values return null.
  */
 export function lessonDateTime(lesson: ScheduledLesson): Date | null {
-  const raw = lesson.lessonDate.trim();
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
+  return parseSheetDate(lesson.lessonDate);
+}
+
+/**
+ * Combine the lesson date with the parsed end-time for same-day comparisons.
+ * Returns null when either side is unparseable.
+ */
+function lessonEndDateTime(lesson: ScheduledLesson): Date | null {
+  const day = lessonDateTime(lesson);
+  if (!day) return null;
+  const t = lesson.endTime.trim();
+  const m = /^(\d{1,2}):(\d{2})\s*([AP]M)?$/i.exec(t);
+  if (!m) return null;
+  let hour = Number(m[1]);
+  const minute = Number(m[2]);
+  const period = m[3]?.toUpperCase();
+  if (period === "PM" && hour < 12) hour += 12;
+  else if (period === "AM" && hour === 12) hour = 0;
+  const result = new Date(day);
+  result.setHours(hour, minute, 0, 0);
+  return result;
 }
 
 /**
@@ -75,12 +98,13 @@ export function formatLessonBlockDisplay(lesson: ScheduledLesson): string {
 }
 
 /**
- * Upcoming = lesson on/after local today AND status is Scheduled or Rescheduled.
- * Completed / Cancelled are excluded so the dashboard stays forward-looking.
- * (Tweak here when adding a calendar view.)
+ * Upcoming = future date OR same day with end time still ahead, AND status is
+ * Scheduled / Rescheduled (or blank, treated as Scheduled). Completed and
+ * Cancelled are excluded so the dashboard stays forward-looking. A same-day
+ * lesson rolls off "Upcoming" once its end time has passed.
  */
 export function isUpcomingLesson(lesson: ScheduledLesson, now: Date = new Date()): boolean {
-  const st = statusLower(lesson.status);
+  const st = statusLowerOrDefault(lesson.status);
   if (st === "completed" || st === "cancelled") return false;
   if (st !== "scheduled" && st !== "rescheduled") return false;
 
@@ -88,7 +112,12 @@ export function isUpcomingLesson(lesson: ScheduledLesson, now: Date = new Date()
   if (!dt) return false;
   const dayStart = startOfLocalDay(now);
   const lessonDay = startOfLocalDay(dt);
-  return lessonDay.getTime() >= dayStart.getTime();
+  if (lessonDay.getTime() < dayStart.getTime()) return false;
+  if (lessonDay.getTime() > dayStart.getTime()) return true;
+
+  const endDt = lessonEndDateTime(lesson);
+  if (!endDt) return true;
+  return endDt.getTime() >= now.getTime();
 }
 
 function sortTimeKey(lesson: ScheduledLesson): string {
@@ -114,10 +143,11 @@ function emailKey(email: string): string {
 }
 
 /**
- * History: completed, or lesson date before today. Cancelled rows are omitted.
+ * History: completed, lesson date before today, or same-day lesson whose end
+ * time has passed. Cancelled rows are omitted.
  */
 export function isPastOrCompletedRecent(lesson: ScheduledLesson, now: Date = new Date()): boolean {
-  const st = statusLower(lesson.status);
+  const st = statusLowerOrDefault(lesson.status);
   if (st === "cancelled") return false;
   if (st === "completed") return true;
 
@@ -125,7 +155,12 @@ export function isPastOrCompletedRecent(lesson: ScheduledLesson, now: Date = new
   if (!dt) return false;
   const dayStart = startOfLocalDay(now);
   const lessonDay = startOfLocalDay(dt);
-  return lessonDay.getTime() < dayStart.getTime();
+  if (lessonDay.getTime() < dayStart.getTime()) return true;
+  if (lessonDay.getTime() > dayStart.getTime()) return false;
+
+  const endDt = lessonEndDateTime(lesson);
+  if (!endDt) return false;
+  return endDt.getTime() < now.getTime();
 }
 
 export function compareLessonsByDateTimeDesc(a: ScheduledLesson, b: ScheduledLesson): number {
@@ -135,11 +170,14 @@ export function compareLessonsByDateTimeDesc(a: ScheduledLesson, b: ScheduledLes
 export type StudentLessonPartition = {
   nextLesson: ScheduledLesson | null;
   upcomingLessons: ScheduledLesson[];
+  /** All historical lessons newest-first; UI may cap how many it renders. */
   recentLessons: ScheduledLesson[];
 };
 
 /**
- * Filter by student email, then split into next / rest of upcoming / recent history.
+ * Filter by student email, then split into next / rest of upcoming / recent
+ * history. The recent list is no longer pre-truncated so the UI can show a
+ * count + "Show all" affordance instead of silently dropping rows.
  */
 export function partitionStudentLessons(
   lessons: ScheduledLesson[],
@@ -157,8 +195,7 @@ export function partitionStudentLessons(
 
   const recentLessons = mine
     .filter((l) => isPastOrCompletedRecent(l))
-    .sort(compareLessonsByDateTimeDesc)
-    .slice(0, 5);
+    .sort(compareLessonsByDateTimeDesc);
 
   return { nextLesson, upcomingLessons, recentLessons };
 }
