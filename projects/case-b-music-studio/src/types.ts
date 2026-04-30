@@ -38,19 +38,3 @@ export type ScheduledLesson = {
   /** From sheet column "Note" or "Notes" */
   note: string;
 };
-
-export type ResourceCategory =
-  | "sheet-music"
-  | "exercises"
-  | "warmups"
-  | "technique"
-  | "theory"
-  | "student-specific";
-
-export type ResourceItem = {
-  id: string;
-  title: string;
-  category: ResourceCategory;
-  description: string;
-  tags?: string[];
-};
