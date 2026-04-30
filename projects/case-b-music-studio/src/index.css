@@ -263,6 +263,36 @@ a:hover {
   border-color: var(--accent-muted);
 }
 
+/* External-link pills (Google Sheet / Form / Edit form). Visually subordinate
+   to internal nav so the eye lands on Dashboard / Students first. */
+.nav-pill--external {
+  color: var(--muted);
+  gap: 0.4rem;
+}
+
+.nav-pill--external:hover {
+  color: var(--text);
+}
+
+.nav-pill__external-icon {
+  font-size: 0.85em;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.app-top__nav-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 var(--space-1);
+}
+
+@media (max-width: 600px) {
+  .app-top__nav-divider {
+    display: none;
+  }
+}
+
 .main {
   flex: 1;
   min-width: 0;
@@ -1064,4 +1094,58 @@ a:hover {
   .student-card:hover {
     transform: none;
   }
+}
+
+/* "Quick links" card on the Dashboard — a vertical list of external
+   Google Sheet / Form links. Each row mirrors button-ghost hover styling
+   so it reads as an actionable target while staying inside the card frame. */
+.quick-links {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.quick-links__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text);
+  text-decoration: none;
+  transition: background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.quick-links__item:hover,
+.quick-links__item:focus-visible {
+  background: var(--accent-soft);
+  border-color: var(--accent-muted);
+  color: var(--text);
+}
+
+.quick-links__item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.quick-links__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.quick-links__icon {
+  font-size: 0.9em;
+  opacity: 0.75;
+}
+
+.quick-links__desc {
+  font-size: 0.85rem;
 }

@@ -16,6 +16,10 @@ import {
   type DashboardProfileUpdate,
 } from "../lib/studentProfileSnapshots";
 import { formatLessonDateLong } from "../lib/dateUtils";
+import {
+  EXTERNAL_LINKS,
+  EXTERNAL_LINK_ORDER,
+} from "../lib/externalLinks";
 import type { ScheduledLesson, Student } from "../types";
 
 function clipText(s: string, max = 160): string {
@@ -177,6 +181,41 @@ export function Dashboard() {
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="card span-2 quick-links-card" aria-labelledby="quick-links-h">
+          <h2 id="quick-links-h" className="card__title">Quick links</h2>
+          <p className="muted profile-updates-intro">
+            Open the source spreadsheet or Google Form in a new tab.
+          </p>
+          <ul className="quick-links">
+            {EXTERNAL_LINK_ORDER.map((key) => {
+              const link = EXTERNAL_LINKS[key];
+              return (
+                <li key={key}>
+                  <a
+                    className="quick-links__item"
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="quick-links__title">
+                      <span className="strong">{link.label}</span>
+                      <span
+                        className="quick-links__icon"
+                        aria-hidden="true"
+                      >
+                        ↗
+                      </span>
+                    </span>
+                    <span className="muted quick-links__desc">
+                      {link.description}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         <section className="card span-2">
