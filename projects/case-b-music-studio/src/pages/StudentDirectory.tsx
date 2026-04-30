@@ -12,8 +12,6 @@ import { getAllStudents, getStudentByEmail } from "../api/appsScriptStudent";
 import { FormSubmissionHistorySection } from "../components/FormSubmissionHistorySection";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
 import {
-  formatLessonBlockDisplay,
-  formatLessonTimeRangeForDisplay,
   lessonStableKey,
   partitionStudentLessons,
 } from "../lib/lessonScheduleUtils";
@@ -21,6 +19,8 @@ import {
   formatLessonDateLong,
   formatLessonDateShort,
 } from "../lib/dateUtils";
+import { studentInitials } from "../lib/displayUtils";
+import { LessonRow } from "../components/LessonRow";
 import type { ScheduledLesson, Student } from "../types";
 
 const RECENT_LESSONS_INITIAL_VISIBLE = 5;
@@ -92,67 +92,6 @@ function readStoredTeacherNotes(studentId: string, fallback: string): string {
   return fallback === "—" ? "" : fallback;
 }
 
-function BookedLessonSummary({ lesson }: { lesson: ScheduledLesson }) {
-  const timeRange = formatLessonTimeRangeForDisplay(lesson);
-  return (
-    <p className="profile-booked__line">
-      <span className="strong">{formatLessonDateLong(lesson.lessonDate)}</span>
-      {" · "}
-      {formatLessonBlockDisplay(lesson)}
-      {" · "}
-      <span className="muted">{lesson.status.trim() || "—"}</span>
-      {timeRange ? (
-        <>
-          <br />
-          <span className="muted">{timeRange}</span>
-        </>
-      ) : null}
-      {lesson.lessonFocus.trim() ? (
-        <>
-          <br />
-          <span className="muted">{lesson.lessonFocus.trim()}</span>
-        </>
-      ) : null}
-      {lesson.note.trim() ? (
-        <>
-          <br />
-          <span className="muted profile-booked__note">{lesson.note.trim()}</span>
-        </>
-      ) : null}
-    </p>
-  );
-}
-
-function BookedLessonListItem({ lesson }: { lesson: ScheduledLesson }) {
-  const timeRange = formatLessonTimeRangeForDisplay(lesson);
-  return (
-    <div>
-      <span className="strong">{formatLessonDateLong(lesson.lessonDate)}</span>
-      <span className="muted">
-        {" "}
-        · {formatLessonBlockDisplay(lesson)} · {lesson.status.trim() || "—"}
-      </span>
-      {timeRange ? (
-        <span className="muted">
-          <br />
-          {timeRange}
-        </span>
-      ) : null}
-      {lesson.lessonFocus.trim() ? (
-        <span className="muted">
-          <br />
-          {lesson.lessonFocus.trim()}
-        </span>
-      ) : null}
-      {lesson.note.trim() ? (
-        <span className="muted profile-booked__note">
-          <br />
-          {lesson.note.trim()}
-        </span>
-      ) : null}
-    </div>
-  );
-}
 
 function StudentDetailPanel({
   student,
@@ -234,12 +173,20 @@ function StudentDetailPanel({
   return (
     <div className="card student-detail-panel">
       <div className="student-detail-panel__header">
-        <div>
-          <h2 className="student-detail-panel__title">{student.name}</h2>
-          <p className="muted student-detail-panel__meta">
-            {displayField(student.instrument)} ·{" "}
-            {displayField(student.currentLevel)}
-          </p>
+        <div className="student-detail-panel__identity">
+          <span
+            className="student-avatar student-avatar--lg"
+            aria-hidden="true"
+          >
+            {studentInitials(student.name, student.contactEmail ?? student.id)}
+          </span>
+          <div>
+            <h2 className="student-detail-panel__title">{student.name}</h2>
+            <p className="muted student-detail-panel__meta">
+              {displayField(student.instrument)} ·{" "}
+              {displayField(student.currentLevel)}
+            </p>
+          </div>
         </div>
         <button
           type="button"
@@ -385,30 +332,34 @@ function StudentDetailPanel({
           )}
           {scheduleFetchState.status === "success" && schedulePartition && (
             <>
-              <p className="profile-booked__sub">Next lesson</p>
+              <p className="profile-booked__sub eyebrow">Next lesson</p>
               {schedulePartition.nextLesson ? (
-                <BookedLessonSummary lesson={schedulePartition.nextLesson} />
+                <div className="lesson-rows">
+                  <LessonRow
+                    lesson={schedulePartition.nextLesson}
+                    variant="static"
+                  />
+                </div>
               ) : (
                 <p className="muted profile-booked__line">—</p>
               )}
 
-              <p className="profile-booked__sub">Upcoming</p>
+              <p className="profile-booked__sub eyebrow">Upcoming</p>
               {schedulePartition.upcomingLessons.length === 0 ? (
                 <p className="muted profile-booked__line">—</p>
               ) : (
-                <ul className="lesson-schedule-list lesson-schedule-list--compact">
+                <div className="lesson-rows">
                   {schedulePartition.upcomingLessons.map((lesson, i) => (
-                    <li
+                    <LessonRow
                       key={lessonStableKey(lesson, i)}
-                      className="lesson-schedule-list__row"
-                    >
-                      <BookedLessonListItem lesson={lesson} />
-                    </li>
+                      lesson={lesson}
+                      variant="static"
+                    />
                   ))}
-                </ul>
+                </div>
               )}
 
-              <p className="profile-booked__sub">
+              <p className="profile-booked__sub eyebrow">
                 Recent
                 {schedulePartition.recentLessons.length > 0 && (
                   <span className="muted">
@@ -426,7 +377,7 @@ function StudentDetailPanel({
                 <p className="muted profile-booked__line">—</p>
               ) : (
                 <>
-                  <ul className="lesson-schedule-list lesson-schedule-list--compact">
+                  <div className="lesson-rows">
                     {(showAllRecent
                       ? schedulePartition.recentLessons
                       : schedulePartition.recentLessons.slice(
@@ -434,19 +385,18 @@ function StudentDetailPanel({
                           RECENT_LESSONS_INITIAL_VISIBLE
                         )
                     ).map((lesson, i) => (
-                      <li
+                      <LessonRow
                         key={lessonStableKey(lesson, i)}
-                        className="lesson-schedule-list__row"
-                      >
-                        <BookedLessonListItem lesson={lesson} />
-                      </li>
+                        lesson={lesson}
+                        variant="static"
+                      />
                     ))}
-                  </ul>
+                  </div>
                   {schedulePartition.recentLessons.length >
                     RECENT_LESSONS_INITIAL_VISIBLE && (
                     <button
                       type="button"
-                      className="button-ghost"
+                      className="button-ghost profile-booked__show-all"
                       onClick={() => setShowAllRecent((prev) => !prev)}
                       aria-expanded={showAllRecent}
                     >
@@ -812,14 +762,22 @@ export function StudentDirectory() {
                 onClick={() => handleCardClick(s.id)}
                 aria-expanded={selectedId === s.id}
               >
-                <span className="student-card__name">{s.name}</span>
-                <span className="student-card__meta">
-                  <span>{s.instrument}</span>
-                  <span className="dot" aria-hidden />
-                  <span>{s.currentLevel}</span>
+                <span
+                  className="student-avatar student-card__avatar"
+                  aria-hidden="true"
+                >
+                  {studentInitials(s.name, s.contactEmail ?? s.id)}
                 </span>
-                <span className="student-card__updated muted">
-                  Updated {formatLessonDateShort(s.lastUpdated)}
+                <span className="student-card__body">
+                  <span className="student-card__name">{s.name}</span>
+                  <span className="student-card__meta">
+                    <span>{s.instrument}</span>
+                    <span className="dot" aria-hidden />
+                    <span>{s.currentLevel}</span>
+                  </span>
+                  <span className="student-card__updated muted">
+                    Updated {formatLessonDateShort(s.lastUpdated)}
+                  </span>
                 </span>
               </button>
             ))}

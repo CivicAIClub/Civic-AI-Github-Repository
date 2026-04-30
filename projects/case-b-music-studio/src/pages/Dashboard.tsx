@@ -4,8 +4,6 @@ import { getScheduleList } from "../api/appsScriptSchedule";
 import { getAllStudents } from "../api/appsScriptStudent";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
 import {
-  formatLessonBlockDisplay,
-  formatLessonTimeRangeForDisplay,
   lessonStableKey,
   upcomingLessonsSorted,
 } from "../lib/lessonScheduleUtils";
@@ -15,11 +13,11 @@ import {
   saveProfileSnapshots,
   type DashboardProfileUpdate,
 } from "../lib/studentProfileSnapshots";
-import { formatLessonDateLong } from "../lib/dateUtils";
 import {
   EXTERNAL_LINKS,
   EXTERNAL_LINK_ORDER,
 } from "../lib/externalLinks";
+import { LessonRow } from "../components/LessonRow";
 import type { ScheduledLesson, Student } from "../types";
 
 function clipText(s: string, max = 160): string {
@@ -133,11 +131,13 @@ export function Dashboard() {
       </header>
 
       <div className="grid-dashboard">
-        <section className="card card--stat">
-          <h2 className="card__title">Total students</h2>
-          <p className="stat-value">{loadError ? "—" : students.length}</p>
-          <p className="muted">
-            {loadError ? loadError : "Loaded from your Google Sheet (roster)"}
+        <section className="card card--stat dashboard-hero">
+          <span className="dashboard-hero__eyebrow">Total students</span>
+          <p className="dashboard-hero__value">
+            {loadError ? "—" : students.length}
+          </p>
+          <p className="muted dashboard-hero__caption">
+            {loadError ? loadError : "Loaded live from your Google Sheet"}
           </p>
         </section>
 
@@ -181,41 +181,6 @@ export function Dashboard() {
               ))}
             </ul>
           )}
-        </section>
-
-        <section className="card span-2 quick-links-card" aria-labelledby="quick-links-h">
-          <h2 id="quick-links-h" className="card__title">Quick links</h2>
-          <p className="muted profile-updates-intro">
-            Open the source spreadsheet or Google Form in a new tab.
-          </p>
-          <ul className="quick-links">
-            {EXTERNAL_LINK_ORDER.map((key) => {
-              const link = EXTERNAL_LINKS[key];
-              return (
-                <li key={key}>
-                  <a
-                    className="quick-links__item"
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span className="quick-links__title">
-                      <span className="strong">{link.label}</span>
-                      <span
-                        className="quick-links__icon"
-                        aria-hidden="true"
-                      >
-                        ↗
-                      </span>
-                    </span>
-                    <span className="muted quick-links__desc">
-                      {link.description}
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
         </section>
 
         <section className="card span-2">
@@ -324,7 +289,6 @@ export function Dashboard() {
               <p className="muted empty-state">
                 Add <code>?action=schedule-list</code> to your Apps Script and a
                 tab named <code>Lesson Schedule</code> (see{" "}
-                <code>apps-script/lesson-schedule-doGet-snippet.js</code> and{" "}
                 <code>src/api/appsScriptSchedule.ts</code>).
               </p>
             </div>
@@ -333,50 +297,56 @@ export function Dashboard() {
             <p className="placeholder-text">No upcoming scheduled lessons.</p>
           )}
           {scheduleLoadStatus === "ok" && upcomingForDashboard.length > 0 && (
-            <ul className="lesson-schedule-list">
-              {upcomingForDashboard.map((lesson, i) => {
-                const timeRange = formatLessonTimeRangeForDisplay(lesson);
-                return (
-                <li
+            <div className="lesson-rows">
+              {upcomingForDashboard.map((lesson, i) => (
+                <LessonRow
                   key={lessonStableKey(lesson, i)}
-                  className="lesson-schedule-list__row"
-                >
-                  <div className="lesson-schedule-list__main">
-                    <Link
-                      to={`/students?student=${encodeURIComponent(lesson.studentEmail)}`}
-                      className="link-block lesson-schedule-list__link"
-                    >
-                      <span className="strong lesson-schedule-list__name">
-                        {lesson.studentName.trim() || lesson.studentEmail}
+                  lesson={lesson}
+                  variant="link"
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section
+          className="card span-2 quick-links-card"
+          aria-labelledby="quick-links-h"
+        >
+          <h2 id="quick-links-h" className="card__title">
+            Quick links
+          </h2>
+          <p className="muted profile-updates-intro">
+            Open the source spreadsheet or Google Form in a new tab.
+          </p>
+          <ul className="quick-links">
+            {EXTERNAL_LINK_ORDER.map((key) => {
+              const link = EXTERNAL_LINKS[key];
+              return (
+                <li key={key}>
+                  <a
+                    className="quick-links__item"
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="quick-links__title">
+                      <span className="strong">{link.label}</span>
+                      <span
+                        className="quick-links__icon"
+                        aria-hidden="true"
+                      >
+                        ↗
                       </span>
-                      <span className="muted lesson-schedule-list__meta">
-                        {formatLessonDateLong(lesson.lessonDate)}
-                      </span>
-                      <span className="lesson-schedule-list__block">
-                        {formatLessonBlockDisplay(lesson)}
-                      </span>
-                      {timeRange ? (
-                        <span className="muted lesson-schedule-list__time">
-                          {timeRange}
-                        </span>
-                      ) : null}
-                    </Link>
-                  </div>
-                  <div className="lesson-schedule-list__side">
-                    <span className="lesson-schedule-list__status">
-                      {lesson.status.trim() || "—"}
                     </span>
-                    <span className="muted lesson-schedule-list__focus">
-                      {lesson.lessonFocus.trim()
-                        ? clipText(lesson.lessonFocus, 120)
-                        : "—"}
+                    <span className="muted quick-links__desc">
+                      {link.description}
                     </span>
-                  </div>
+                  </a>
                 </li>
               );
-              })}
-            </ul>
-          )}
+            })}
+          </ul>
         </section>
       </div>
     </div>

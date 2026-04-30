@@ -1,14 +1,16 @@
 :root {
   color-scheme: light;
-  /* Pomfret: deep crimson, rose surfaces, black type, soft warm grays */
-  --bg: #f4f1f0;
-  --surface: #fefcfc;
+  /* Pomfret: deep crimson, warm cream surfaces, near-black type, soft warm grays */
+  --bg: #f6f1ec;
+  --surface: #fffdfb;
   --surface-elevated: #ffffff;
-  --surface-subtle: #f8f4f3;
-  --text: #0f0e0d;
-  --muted: #6b6562;
-  --border: #e8e0e0;
-  --border-strong: #d8cfcf;
+  --surface-subtle: #f7f1ec;
+  --text: #1a1411;
+  --text-soft: #2d2522;
+  --muted: #6b6157;
+  --muted-strong: #574d44;
+  --border: #ece4dd;
+  --border-strong: #d8ccc1;
   --accent: #7a142f;
   --accent-hover: #5e0f24;
   --accent-soft: #f3e6ea;
@@ -16,16 +18,35 @@
   --accent-muted: #b8929c;
   --accent-border-subtle: rgba(122, 20, 47, 0.14);
   --focus-ring: rgba(122, 20, 47, 0.38);
-  --radius: 16px;
-  --radius-sm: 14px;
+
+  /* Status colors used in pills + dots; muted on purpose */
+  --status-success: #2f6a3f;
+  --status-success-soft: rgba(47, 106, 63, 0.1);
+  --status-warning: #a35a13;
+  --status-warning-soft: rgba(163, 90, 19, 0.1);
+  --status-info: #2f5b8a;
+  --status-info-soft: rgba(47, 91, 138, 0.1);
+  --status-neutral: #6b6157;
+  --status-neutral-soft: rgba(107, 97, 87, 0.1);
+  --status-danger: #8c2727;
+  --status-danger-soft: rgba(140, 39, 39, 0.08);
+
+  --radius: 14px;
+  --radius-sm: 10px;
   --radius-pill: 999px;
   --shadow: 0 1px 2px rgba(15, 14, 13, 0.05), 0 4px 12px rgba(15, 14, 13, 0.04);
-  --shadow-card: 0 1px 2px rgba(15, 14, 13, 0.04),
-    0 6px 20px rgba(15, 14, 13, 0.06);
-  --shadow-card-hover: 0 2px 4px rgba(15, 14, 13, 0.06),
-    0 10px 28px rgba(15, 14, 13, 0.08);
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+  --shadow-card: 0 1px 1px rgba(20, 14, 10, 0.04),
+    0 1px 3px rgba(20, 14, 10, 0.04), 0 8px 24px rgba(20, 14, 10, 0.05);
+  --shadow-card-hover: 0 2px 3px rgba(20, 14, 10, 0.06),
+    0 12px 32px rgba(20, 14, 10, 0.08);
+
+  --font-serif: "Crimson Pro", "Hoefler Text", "Sorts Mill Goudy", Georgia,
+    "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  /* Back-compat for any callsites still referencing the old token. */
+  --font: var(--font-sans);
+
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -68,11 +89,25 @@ body {
 }
 
 body {
-  font-family: var(--font);
+  font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Editorial display type: Pomfret-feeling serif for big surfaces only.
+   Body / labels / inputs / buttons stay sans for legibility and density. */
+.page-header h1,
+.card__title,
+.student-detail-panel__title,
+.stat-value,
+.app-top__title,
+.dashboard-hero__value {
+  font-family: var(--font-serif);
 }
 
 #root {
@@ -199,11 +234,11 @@ a:hover {
 }
 
 .app-top__title {
-  font-weight: 650;
-  font-size: 1.06rem;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  font-size: 1.2rem;
+  letter-spacing: -0.005em;
   color: var(--text);
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .app-top__subtitle {
@@ -335,11 +370,11 @@ a:hover {
 
 .page-header h1 {
   margin: 0 0 var(--space-3);
-  font-size: clamp(1.55rem, 2.5vw, 1.95rem);
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-size: clamp(2rem, 3.2vw, 2.6rem);
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--text);
-  line-height: 1.15;
+  line-height: 1.05;
 }
 
 .page-header__lede {
@@ -377,31 +412,72 @@ a:hover {
 }
 
 .card {
+  position: relative;
   background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-6);
   box-shadow: var(--shadow-card);
   transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .card:hover {
   border-color: var(--accent-border-subtle);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .card--stat .stat-value {
-  font-size: 2.25rem;
-  font-weight: 700;
-  margin: 0.25rem 0;
+  font-size: clamp(3rem, 6vw, 4.5rem);
+  font-weight: 600;
+  margin: 0.25rem 0 0.5rem;
   letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--accent);
+}
+
+/* Eyebrow label used above hero numbers and other "small caps" affordances. */
+.eyebrow,
+.dashboard-hero__eyebrow {
+  display: block;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+
+.dashboard-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(122, 20, 47, 0.045) 0%, transparent 60%),
+    var(--surface-elevated);
+}
+
+.dashboard-hero__value {
+  font-size: clamp(3.4rem, 7vw, 5rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--accent);
+  margin: 0.1rem 0 0.4rem;
+}
+
+.dashboard-hero__caption {
+  margin: 0;
+  font-size: 0.92rem;
 }
 
 .card__title {
   margin: 0 0 var(--space-3);
-  font-size: 1.08rem;
-  font-weight: 650;
-  letter-spacing: -0.015em;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text);
+  line-height: 1.15;
 }
 
 .placeholder-card .placeholder-text {
@@ -587,10 +663,12 @@ a:hover {
   background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--space-5) var(--space-5);
+  padding: var(--space-4) var(--space-5);
   box-shadow: var(--shadow-card);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  align-items: center;
   gap: var(--space-2);
   min-height: 120px;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
@@ -621,9 +699,24 @@ a:hover {
   border-color: var(--accent-hover);
 }
 
+.student-card__avatar {
+  align-self: start;
+}
+
+.student-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
 .student-card__name {
-  font-weight: 650;
-  font-size: 1.05rem;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  color: var(--text);
 }
 
 .student-card__meta {
@@ -701,10 +794,19 @@ a:hover {
   border-bottom: 1px solid var(--border);
 }
 
+.student-detail-panel__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
 .student-detail-panel__title {
   margin: 0;
-  font-size: 1.35rem;
-  font-weight: 650;
+  font-size: 1.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
 
 .student-detail-panel__meta {
@@ -1044,12 +1146,24 @@ a:hover {
 }
 
 .profile-booked__sub {
-  margin: 0.65rem 0 0.25rem;
-  font-size: 0.8rem;
-  font-weight: 600;
+  margin: 1rem 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--muted);
+  letter-spacing: 0.12em;
+  color: var(--muted-strong);
+}
+
+.profile-booked__sub:first-child {
+  margin-top: 0;
+}
+
+.lesson-rows {
+  margin-top: 0.25rem;
+}
+
+.profile-booked__show-all {
+  margin-top: var(--space-3);
 }
 
 .profile-booked__line {
@@ -1148,4 +1262,214 @@ a:hover {
 
 .quick-links__desc {
   font-size: 0.85rem;
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * Status pill — compact colored chip for lesson statuses.
+ * Variants are derived from the canonical Status column values:
+ *   Scheduled / Rescheduled / Completed / Cancelled / fallback.
+ * ──────────────────────────────────────────────────────────────────── */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--status-neutral-soft);
+  color: var(--status-neutral);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.status-pill::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.status-pill--scheduled {
+  color: var(--status-success);
+  background: var(--status-success-soft);
+}
+
+.status-pill--rescheduled {
+  color: var(--status-warning);
+  background: var(--status-warning-soft);
+}
+
+.status-pill--completed {
+  color: var(--status-info);
+  background: var(--status-info-soft);
+}
+
+.status-pill--cancelled {
+  color: var(--status-danger);
+  background: var(--status-danger-soft);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * Lesson row — calendar-style entry with a date "tab" on the left.
+ * Used for Dashboard "Upcoming lessons" + the profile panel's recent /
+ * upcoming list inside StudentDetailPanel.
+ * ──────────────────────────────────────────────────────────────────── */
+.lesson-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-4);
+  align-items: stretch;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.lesson-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.lesson-row__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  padding: 0.35rem 0.4rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  text-align: center;
+  border: 1px solid var(--accent-border-subtle);
+}
+
+.lesson-row__date-day {
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.lesson-row__date-num {
+  font-family: var(--font-serif);
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+.lesson-row__date-month {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 0.2rem;
+  opacity: 0.8;
+  line-height: 1;
+}
+
+.lesson-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.15rem 0;
+}
+
+.lesson-row__name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: -0.005em;
+}
+
+.lesson-row__name:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.lesson-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.lesson-row__meta-divider {
+  color: var(--border-strong);
+  user-select: none;
+}
+
+.lesson-row__focus {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.lesson-row__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  text-align: right;
+  padding: 0.15rem 0;
+}
+
+.lesson-row__time {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+}
+
+@media (max-width: 540px) {
+  .lesson-row {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+  }
+  .lesson-row__side {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    padding-left: 76px;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * Student initials avatar — circular badge in directory + profile.
+ * ──────────────────────────────────────────────────────────────────── */
+.student-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-border-subtle);
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  user-select: none;
+}
+
+.student-avatar--lg {
+  width: 56px;
+  height: 56px;
+  font-size: 1.4rem;
 }
