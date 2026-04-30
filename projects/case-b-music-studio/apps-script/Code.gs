@@ -143,11 +143,24 @@ function doGet(e) {
   });
 }
 
+/**
+ * Sheets stores time-only cells as fractional days from 1899-12-30. When those
+ * Date objects are serialized to UTC ISO and parsed by the browser, JavaScript
+ * applies 1899's local-mean-time offset, which produces nonsense like "12:02
+ * PM" for a cell the teacher typed as "11:30". Format time-only cells as
+ * wall-clock strings on this side so the frontend can display them as-is.
+ */
 function rowToObject(headers, row) {
+  const ssTz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
   const obj = {};
   for (let i = 0; i < headers.length; i++) {
     const key = String(headers[i] || "").trim();
-    obj[key] = row[i];
+    const val = row[i];
+    if (val instanceof Date && val.getFullYear() < 1900) {
+      obj[key] = Utilities.formatDate(val, ssTz, "h:mm a");
+    } else {
+      obj[key] = val;
+    }
   }
   return obj;
 }
