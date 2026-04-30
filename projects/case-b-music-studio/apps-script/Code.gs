@@ -58,20 +58,49 @@ function doGet(e) {
   const email = String(e.parameter.email || "").trim().toLowerCase();
 
   // 1) One student by email — latest row from that student's per-email tab.
+  // Falls back to scanning Form Responses 1 when no per-email tab exists,
+  // which happens for submissions that pre-date the onFormSubmit trigger
+  // (or when a tab gets manually deleted). Without the fallback those
+  // students show on the roster but error out when clicked.
   if (email && !action) {
     const sheet = ss.getSheetByName(email);
-    if (!sheet) {
+    if (sheet) {
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) {
+        return jsonResponse({ error: "No data found for this student" });
+      }
+
+      const headers = data[0];
+      const lastRow = data[data.length - 1];
+      return jsonResponse(rowToObject(headers, lastRow));
+    }
+
+    const formSheet = ss.getSheetByName("Form Responses 1");
+    if (!formSheet) {
       return jsonResponse({ error: "Student not found" });
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length < 2) {
-      return jsonResponse({ error: "No data found for this student" });
+    const formData = formSheet.getDataRange().getValues();
+    if (formData.length < 2) {
+      return jsonResponse({ error: "Student not found" });
     }
-
-    const headers = data[0];
-    const lastRow = data[data.length - 1];
-    return jsonResponse(rowToObject(headers, lastRow));
+    const formHeaders = formData[0];
+    const emailColIndex = formHeaders
+      .map((h) => String(h).trim().toLowerCase())
+      .indexOf("email address");
+    if (emailColIndex === -1) {
+      return jsonResponse({ error: "Student not found" });
+    }
+    let latestRow = null;
+    for (let r = 1; r < formData.length; r++) {
+      const rowEmail = String(formData[r][emailColIndex] || "")
+        .trim()
+        .toLowerCase();
+      if (rowEmail === email) latestRow = formData[r];
+    }
+    if (!latestRow) {
+      return jsonResponse({ error: "Student not found" });
+    }
+    return jsonResponse(rowToObject(formHeaders, latestRow));
   }
 
   // 2) Student roster list — every row from "Form Responses 1".
@@ -149,6 +178,12 @@ function doGet(e) {
  * applies 1899's local-mean-time offset, which produces nonsense like "12:02
  * PM" for a cell the teacher typed as "11:30". Format time-only cells as
  * wall-clock strings on this side so the frontend can display them as-is.
+ *
+ * Date-only cells (year >= 1900, midnight in the spreadsheet's timezone) are
+ * sent as plain "yyyy-MM-dd" so the frontend can render the same calendar
+ * date for any viewer regardless of timezone. Anything else (timestamps with
+ * a real time component) keeps full ISO so the frontend can parse it as a
+ * Date and format it with the viewer's locale.
  */
 function rowToObject(headers, row) {
   const ssTz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
@@ -156,8 +191,17 @@ function rowToObject(headers, row) {
   for (let i = 0; i < headers.length; i++) {
     const key = String(headers[i] || "").trim();
     const val = row[i];
-    if (val instanceof Date && val.getFullYear() < 1900) {
-      obj[key] = Utilities.formatDate(val, ssTz, "h:mm a");
+    if (val instanceof Date) {
+      if (val.getFullYear() < 1900) {
+        obj[key] = Utilities.formatDate(val, ssTz, "h:mm a");
+      } else {
+        const wallClock = Utilities.formatDate(val, ssTz, "HH:mm:ss");
+        if (wallClock === "00:00:00") {
+          obj[key] = Utilities.formatDate(val, ssTz, "yyyy-MM-dd");
+        } else {
+          obj[key] = val;
+        }
+      }
     } else {
       obj[key] = val;
     }

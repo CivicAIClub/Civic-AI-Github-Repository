@@ -4,6 +4,7 @@ import {
   sortSubmissionsOldestFirst,
   submissionSortTimeMs,
 } from "../lib/formSubmissionHistory";
+import { formatTimestampLong } from "../lib/dateUtils";
 
 function clipText(s: string, max = 200): string {
   const t = s.trim();
@@ -14,18 +15,7 @@ function clipText(s: string, max = 200): string {
 function formatSubmissionWhen(p: SheetStudentProfile): string {
   const raw = p.lastUpdated.trim() || p.date.trim();
   if (!raw) return "—";
-  const d = new Date(raw);
-  if (!Number.isNaN(d.getTime())) {
-    return d.toLocaleString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
-  return raw;
+  return formatTimestampLong(raw);
 }
 
 export function FormSubmissionHistorySection({
