@@ -29,28 +29,24 @@ export function lessonDateTime(lesson: ScheduledLesson): Date | null {
 }
 
 /**
- * Google Sheets time-only cells often serialize as full datetimes on 1899-12-30.
- * Returns a short local time string, or null if the value should not be shown.
+ * Apps Script formats time-only cells as wall-clock strings ("h:mm a"), so the
+ * common case is "11:30 AM" / "1:02 PM". Display those as-is — never round-trip
+ * through `new Date()`, which can latch onto today's date and break formatting.
+ *
+ * The 1899-12-30 ISO branches stay for backward compatibility with older Apps
+ * Script deployments that haven't been updated yet.
  */
 export function formatSheetTimeForDisplay(raw: string): string | null {
   const t = raw.trim();
   if (!t) return null;
 
+  if (/^\d{1,2}:\d{2}(\s*[AP]M)?$/i.test(t)) return t;
+
   const d = new Date(t);
-  if (Number.isNaN(d.getTime())) {
-    if (/^\d{1,2}:\d{2}(\s*[AP]M)?$/i.test(t)) return t;
-    return null;
-  }
+  if (Number.isNaN(d.getTime())) return null;
 
   const y = d.getFullYear();
-  if (y < 1905) {
-    return d.toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
-
-  if (/1899-12-3[01]/i.test(t)) {
+  if (y < 1905 || /1899-12-3[01]/i.test(t)) {
     return d.toLocaleTimeString(undefined, {
       hour: "numeric",
       minute: "2-digit",
