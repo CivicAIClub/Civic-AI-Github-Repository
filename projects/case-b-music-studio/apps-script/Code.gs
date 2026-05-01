@@ -60,7 +60,22 @@
  *           → { ok, folder: { id, name }, granted: [...emails],
  *                alreadyHadAccess: [...], errors: [{email, message}] }
  *
- *  Future POST actions (Phases 4+) will follow the same shape:
+ *    Phase 4 — Student Resources (one Drive folder per student, with
+ *    student as editor). Folders are children of a parent folder set
+ *    once in Script Properties (STUDENT_RESOURCES_PARENT_FOLDER_ID),
+ *    auto-created on first use, and cached by email in Script
+ *    Properties (STUDENT_FOLDER:<email>) for O(1) lookup.
+ *      {"action":"list-student-folder", "secret":"…", studentEmail}
+ *           → { ok, folder: { id, name, webViewLink, created },
+ *                files: [...], student: { email, name } }
+ *      {"action":"ensure-student-folder", "secret":"…", studentEmail}
+ *           → { ok, folder: { id, name, webViewLink, created },
+ *                student: { email, name } }
+ *      {"action":"sync-student-folders", "secret":"…"}
+ *           → { ok, parent: { id, name }, created: [...emails],
+ *                existed: [...emails], errors: [{email, message}] }
+ *
+ *  Future POST actions (Phases 5+) will follow the same shape:
  *    { "action": "<name>", "secret": "…", ...payload }
  *
  * The frontend clients live in:
@@ -162,6 +177,36 @@ var CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY = "CLASS_RESOURCES_FOLDER_ID";
  * listed here.
  */
 var CLASS_RESOURCES_EXTRA_VIEWERS = [];
+
+/**
+ * Phase 4 — Student Resources. Property key under which the parent
+ * Drive folder ID is stored. Per-student folders live as direct
+ * children of this parent and are auto-created on first use.
+ *
+ * Set this once in Project Settings → Script Properties → Add property:
+ *   STUDENT_RESOURCES_PARENT_FOLDER_ID = <folder id from its Drive URL>
+ *
+ * The parent folder is intentionally separate from the Class Resources
+ * folder so the two can have different sharing scopes (Class = viewer
+ * for everyone; per-student = editor for one student). Both can sit
+ * inside the same shared drive.
+ */
+var STUDENT_RESOURCES_PARENT_FOLDER_ID_PROPERTY_KEY = "STUDENT_RESOURCES_PARENT_FOLDER_ID";
+
+/**
+ * Per-student folder ID cache. Keys are
+ * "STUDENT_FOLDER:<email>" → folder id. Populated lazily by
+ * ensureStudentFolder, never edited by hand.
+ */
+var STUDENT_FOLDER_PROPERTY_PREFIX = "STUDENT_FOLDER:";
+
+/**
+ * Always invited as editors on every per-student folder. Useful for
+ * Dr. Burns / a co-teacher who should be able to drop annotated PDFs
+ * into any student's folder. Empty by default — the student is the
+ * only non-owner editor, with the script owner implicitly as owner.
+ */
+var STUDENT_RESOURCES_EXTRA_EDITORS = [];
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -370,6 +415,12 @@ function doPost(e) {
         return jsonResponse(handleListClassResources(payload));
       case "sync-class-resources-access":
         return jsonResponse(handleSyncClassResourcesAccess(payload));
+      case "list-student-folder":
+        return jsonResponse(handleListStudentFolder(payload));
+      case "ensure-student-folder":
+        return jsonResponse(handleEnsureStudentFolder(payload));
+      case "sync-student-folders":
+        return jsonResponse(handleSyncStudentFolders(payload));
       default:
         return jsonResponse({ ok: false, error: "Unknown action: " + action });
     }
@@ -571,26 +622,25 @@ function authorize() {
   var ssName = SpreadsheetApp.getActiveSpreadsheet().getName();
   var calName = CalendarApp.getDefaultCalendar().getName();
 
-  // Drive scope (Phase 3). Touching the root folder is the cheapest way
-  // to surface the consent prompt; if the Class Resources folder ID is
-  // already configured, also resolve it so we get a clear error here
-  // (instead of from the live web app) when the ID is wrong.
+  // Drive scope (Phase 3+). Touching the root folder is the cheapest
+  // way to surface the consent prompt; if the configured folder IDs
+  // are set, also resolve them so we get clear errors here (instead
+  // of from the live web app) when an ID is wrong.
   var rootName = DriveApp.getRootFolder().getName();
-  var classResourcesName = "(not configured)";
-  try {
-    var folderId = PropertiesService.getScriptProperties()
-      .getProperty(CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY);
-    if (folderId) {
-      classResourcesName = DriveApp.getFolderById(folderId).getName();
-    }
-  } catch (err) {
-    classResourcesName = "(error: " + (err && err.message ? err.message : err) + ")";
-  }
+  var props = PropertiesService.getScriptProperties();
 
-  Logger.log("Spreadsheet:     " + ssName);
-  Logger.log("Calendar:        " + calName);
-  Logger.log("Drive root:      " + rootName);
-  Logger.log("Class Resources: " + classResourcesName);
+  var classResourcesName = resolveFolderNameForAuthorize(
+    props.getProperty(CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY)
+  );
+  var studentResourcesParentName = resolveFolderNameForAuthorize(
+    props.getProperty(STUDENT_RESOURCES_PARENT_FOLDER_ID_PROPERTY_KEY)
+  );
+
+  Logger.log("Spreadsheet:              " + ssName);
+  Logger.log("Calendar:                 " + calName);
+  Logger.log("Drive root:               " + rootName);
+  Logger.log("Class Resources:          " + classResourcesName);
+  Logger.log("Student Resources parent: " + studentResourcesParentName);
   Logger.log(
     "Authorization complete. Re-deploy (Manage deployments → ✏️ → New version) " +
     "if you haven't already."
@@ -600,8 +650,23 @@ function authorize() {
     spreadsheet: ssName,
     calendar: calName,
     driveRoot: rootName,
-    classResources: classResourcesName
+    classResources: classResourcesName,
+    studentResourcesParent: studentResourcesParentName
   };
+}
+
+/**
+ * Helper for authorize() — turns a (possibly-missing) folder id into a
+ * human-readable name for the execution log. Never throws; surfaces
+ * any Drive error inline so the teacher sees what to fix.
+ */
+function resolveFolderNameForAuthorize(folderId) {
+  if (!folderId) return "(not configured)";
+  try {
+    return DriveApp.getFolderById(folderId).getName();
+  } catch (err) {
+    return "(error: " + (err && err.message ? err.message : err) + ")";
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -1104,6 +1169,291 @@ function getStudentEmails() {
     emails.push(raw);
   }
   return emails;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4 — Student Resources (per-student Drive folders, editor access)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the per-student folder for one student plus its top-level
+ * children. Auto-creates the folder on first call (idempotent, with the
+ * student granted editor access) so the dashboard never has to know
+ * whether the folder exists yet.
+ */
+function handleListStudentFolder(payload) {
+  var resolved = resolveStudentFromPayload(payload);
+  var ensured = ensureStudentFolder(resolved.email, resolved.name);
+  var files = listFolderFiles(ensured.folder);
+  return {
+    ok: true,
+    folder: {
+      id: ensured.folder.getId(),
+      name: ensured.folder.getName(),
+      webViewLink: ensured.folder.getUrl(),
+      created: ensured.created
+    },
+    student: { email: resolved.email, name: resolved.name },
+    files: files
+  };
+}
+
+/**
+ * Same as list-student-folder but without the file listing — useful
+ * when the caller only needs to know the folder exists / get its URL.
+ * Used internally by sync-student-folders so the bulk sync doesn't pay
+ * the per-student `listFolderFiles` cost for every row.
+ */
+function handleEnsureStudentFolder(payload) {
+  var resolved = resolveStudentFromPayload(payload);
+  var ensured = ensureStudentFolder(resolved.email, resolved.name);
+  return {
+    ok: true,
+    folder: {
+      id: ensured.folder.getId(),
+      name: ensured.folder.getName(),
+      webViewLink: ensured.folder.getUrl(),
+      created: ensured.created
+    },
+    student: { email: resolved.email, name: resolved.name }
+  };
+}
+
+/**
+ * Bulk-creates per-student folders for every email in Form Responses 1
+ * that doesn't already have one. Reports `created` (newly made),
+ * `existed` (already had a folder), and `errors` (per-email failures —
+ * e.g. invalid email rejected by Drive's permission API).
+ *
+ * Idempotent. Safe to re-run after adding new students to the form.
+ */
+function handleSyncStudentFolders(payload) {
+  var parent = getStudentResourcesParentFolder();
+  var students = getStudentRoster(); // [{ email, name }, ...]
+
+  var created = [];
+  var existed = [];
+  var errors = [];
+
+  students.forEach(function (s) {
+    try {
+      var ensured = ensureStudentFolder(s.email, s.name);
+      if (ensured.created) {
+        created.push(s.email);
+      } else {
+        existed.push(s.email);
+      }
+    } catch (err) {
+      errors.push({
+        email: s.email,
+        message: err && err.message ? err.message : String(err)
+      });
+    }
+  });
+
+  return {
+    ok: true,
+    parent: { id: parent.getId(), name: parent.getName() },
+    created: created,
+    existed: existed,
+    errors: errors
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4 — helpers
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Resolves an email payload field plus the student's display name from
+ * Form Responses 1. The name is best-effort — if the roster doesn't
+ * have a row for this email yet, we fall back to the email itself for
+ * the folder name.
+ */
+function resolveStudentFromPayload(payload) {
+  var email = String((payload && payload.studentEmail) || "")
+    .trim()
+    .toLowerCase();
+  if (!email) throw new Error("Missing studentEmail");
+
+  var nameByEmail = getStudentNameMap();
+  var name = nameByEmail[email] || "";
+  return { email: email, name: name };
+}
+
+/**
+ * Returns the parent folder that holds every per-student sub-folder.
+ * Same shape as getClassResourcesFolder — throws a teacher-friendly
+ * message when the property is unset or the ID is bad.
+ */
+function getStudentResourcesParentFolder() {
+  var folderId = PropertiesService.getScriptProperties()
+    .getProperty(STUDENT_RESOURCES_PARENT_FOLDER_ID_PROPERTY_KEY);
+  if (!folderId) {
+    throw new Error(
+      'Student Resources parent folder is not configured. Set the "' +
+      STUDENT_RESOURCES_PARENT_FOLDER_ID_PROPERTY_KEY +
+      '" Script Property to the folder id from its Drive URL.'
+    );
+  }
+  try {
+    return DriveApp.getFolderById(folderId);
+  } catch (err) {
+    throw new Error(
+      'Could not open Student Resources parent (id "' + folderId + '"): ' +
+      (err && err.message ? err.message : String(err))
+    );
+  }
+}
+
+/**
+ * Idempotent "make sure this student has a folder, with editor access".
+ * Behaviour:
+ *   1. If the email maps to a cached folder id (Script Properties) and
+ *      that folder is still valid, reuse it — but rename it if the
+ *      student's display name changed and re-grant editor access if
+ *      needed.
+ *   2. Otherwise create a fresh folder under the parent, grant editor
+ *      access, cache the id, return.
+ *
+ * Returns { folder: <Folder>, created: <bool> }.
+ *
+ * Edits-in-place are intentionally minimal — we never touch existing
+ * file contents, never lower a permission, and never delete a stale
+ * folder (in case the teacher has work-in-progress in it).
+ */
+function ensureStudentFolder(email, name) {
+  if (!email) throw new Error("ensureStudentFolder requires an email");
+
+  var parent = getStudentResourcesParentFolder();
+  var props = PropertiesService.getScriptProperties();
+  var cacheKey = STUDENT_FOLDER_PROPERTY_PREFIX + email;
+  var cachedId = props.getProperty(cacheKey);
+
+  var folder = null;
+  if (cachedId) {
+    try {
+      folder = DriveApp.getFolderById(cachedId);
+    } catch (err) {
+      folder = null;
+      props.deleteProperty(cacheKey);
+    }
+  }
+
+  var created = false;
+  if (!folder) {
+    folder = parent.createFolder(studentFolderName(name, email));
+    props.setProperty(cacheKey, folder.getId());
+    created = true;
+  } else {
+    var desiredName = studentFolderName(name, email);
+    if (folder.getName() !== desiredName && name) {
+      folder.setName(desiredName);
+    }
+  }
+
+  applyStudentFolderPermissions(folder, email);
+  return { folder: folder, created: created };
+}
+
+/**
+ * Grants editor access to the student + every email in
+ * STUDENT_RESOURCES_EXTRA_EDITORS, idempotently. Skips emails that
+ * already have access at editor-or-above. Errors on a single email
+ * (e.g. invalid address) bubble up to the caller.
+ */
+function applyStudentFolderPermissions(folder, studentEmail) {
+  var existing = {};
+  try {
+    folder.getEditors().forEach(function (u) {
+      var em = String(u.getEmail() || "").toLowerCase();
+      if (em) existing[em] = true;
+    });
+  } catch (err) {
+    // Some shared-drive edge cases — fall through to addEditor as source of truth.
+  }
+
+  var skip = {};
+  try {
+    var ownerEmail = String(folder.getOwner().getEmail() || "").toLowerCase();
+    if (ownerEmail) skip[ownerEmail] = true;
+  } catch (err) {
+    // Shared-drive sub-folders may have no single owner. Falls through.
+  }
+  try {
+    var selfEmail = String(Session.getEffectiveUser().getEmail() || "").toLowerCase();
+    if (selfEmail) skip[selfEmail] = true;
+  } catch (err) {
+    // Session.getEffectiveUser is gated by scope on some accounts; safe to ignore.
+  }
+
+  var targets = [studentEmail];
+  (STUDENT_RESOURCES_EXTRA_EDITORS || []).forEach(function (e) {
+    var trimmed = String(e || "").trim().toLowerCase();
+    if (trimmed) targets.push(trimmed);
+  });
+
+  targets.forEach(function (em) {
+    if (!em) return;
+    if (skip[em]) return;
+    if (existing[em]) return;
+    folder.addEditor(em);
+  });
+}
+
+/**
+ * "First Last — student@example.com" if both sides are non-empty;
+ * "student@example.com" otherwise. Keeping the email visible in the
+ * folder name makes it easy for the teacher to find a folder in Drive
+ * directly when the cache is empty / mid-debugging.
+ */
+function studentFolderName(name, email) {
+  var trimmed = String(name || "").trim();
+  if (!trimmed) return String(email).trim();
+  return trimmed + " — " + String(email).trim();
+}
+
+/**
+ * Reads "Form Responses 1" and returns a map of email → name (the
+ * latest non-empty name wins for a given email). Used by
+ * `resolveStudentFromPayload` for per-student lookups.
+ */
+function getStudentNameMap() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Form Responses 1");
+  if (!sheet) return {};
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return {};
+  var headers = data[0].map(function (h) {
+    return String(h || "").trim().toLowerCase();
+  });
+  var emailCol = headers.indexOf("email address");
+  var nameCol = headers.indexOf("first and last name");
+  if (nameCol === -1) nameCol = headers.indexOf("name");
+  if (emailCol === -1) return {};
+
+  var out = {};
+  for (var r = 1; r < data.length; r++) {
+    var em = String(data[r][emailCol] || "").trim().toLowerCase();
+    if (!em) continue;
+    var nm = nameCol === -1 ? "" : String(data[r][nameCol] || "").trim();
+    if (nm) out[em] = nm; // later submissions overwrite earlier ones
+    else if (!(em in out)) out[em] = "";
+  }
+  return out;
+}
+
+/**
+ * Deduped roster as `[{ email, name }, ...]`. Used by the bulk
+ * sync handler. Same source of truth as `getStudentEmails` (Form
+ * Responses 1); the name is best-effort and may be empty.
+ */
+function getStudentRoster() {
+  var emails = getStudentEmails();
+  var nameByEmail = getStudentNameMap();
+  return emails.map(function (em) {
+    return { email: em, name: nameByEmail[em] || "" };
+  });
 }
 
 /**
