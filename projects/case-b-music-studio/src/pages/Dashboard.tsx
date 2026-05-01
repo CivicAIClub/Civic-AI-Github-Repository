@@ -21,6 +21,7 @@ import {
 import { LessonRow } from "../components/LessonRow";
 import { PendingLessonsSection } from "../components/PendingLessonsSection";
 import { EventPreviewModal } from "../components/EventPreviewModal";
+import { ClassResourcesSection } from "../components/ClassResourcesSection";
 import type { ScheduledLesson, Student } from "../types";
 
 function clipText(s: string, max = 160): string {
@@ -344,6 +345,8 @@ export function Dashboard() {
             </div>
           )}
         </section>
+
+        <ClassResourcesSection />
 
         <section
           className="card span-2 quick-links-card"

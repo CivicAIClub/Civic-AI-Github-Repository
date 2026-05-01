@@ -48,7 +48,19 @@
  *       startTime}
  *           → { ok, cancelled: true }
  *
- *  Future POST actions (Phases 3+) will follow the same shape:
+ *    Phase 3 — Class Resources (shared Google Drive folder visible to
+ *    every enrolled student). The folder ID is set once in Script
+ *    Properties (CLASS_RESOURCES_FOLDER_ID = the folder portion of its
+ *    Drive URL); the script grants viewer access, never owner.
+ *      {"action":"list-class-resources", "secret":"…"}
+ *           → { ok, folder: { id, name, webViewLink },
+ *                files: [ { id, name, mimeType, modifiedTime,
+ *                           webViewLink, iconLink, isFolder } ] }
+ *      {"action":"sync-class-resources-access", "secret":"…"}
+ *           → { ok, folder: { id, name }, granted: [...emails],
+ *                alreadyHadAccess: [...], errors: [{email, message}] }
+ *
+ *  Future POST actions (Phases 4+) will follow the same shape:
  *    { "action": "<name>", "secret": "…", ...payload }
  *
  * The frontend clients live in:
@@ -127,6 +139,29 @@ var CALENDAR_EVENT_ID_COLUMN = "Calendar Event ID";
  * email before linking the deployed site publicly.
  */
 var ALWAYS_INVITE_EMAILS = ["caydenauyang@gmail.com"];
+
+/**
+ * Phase 3 — Class Resources. Property key under which the Drive folder
+ * ID for the shared "Class Resources" folder is stored. The folder
+ * itself is a sub-folder of the studio's shared drive (kept separate
+ * from per-student folders so its permissions can be managed in bulk).
+ *
+ * Set this once in Project Settings → Script Properties → Add property:
+ *   CLASS_RESOURCES_FOLDER_ID = <the id portion of the folder URL>
+ *
+ * The id is the random-looking segment in
+ * https://drive.google.com/drive/folders/<id>.
+ */
+var CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY = "CLASS_RESOURCES_FOLDER_ID";
+
+/**
+ * Additional emails (beyond the enrolled-student roster) that should
+ * always have viewer access on the Class Resources folder. Useful for
+ * Dr. Burns / a co-teacher / a parent rep. The script owner already has
+ * full access because they own the folder, so they don't need to be
+ * listed here.
+ */
+var CLASS_RESOURCES_EXTRA_VIEWERS = [];
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -331,6 +366,10 @@ function doPost(e) {
         return jsonResponse(handleCreateEvent(payload));
       case "cancel-event":
         return jsonResponse(handleCancelEvent(payload));
+      case "list-class-resources":
+        return jsonResponse(handleListClassResources(payload));
+      case "sync-class-resources-access":
+        return jsonResponse(handleSyncClassResourcesAccess(payload));
       default:
         return jsonResponse({ ok: false, error: "Unknown action: " + action });
     }
@@ -531,13 +570,38 @@ function authorize() {
   // corresponding OAuth scope. Logger output is purely informational.
   var ssName = SpreadsheetApp.getActiveSpreadsheet().getName();
   var calName = CalendarApp.getDefaultCalendar().getName();
-  Logger.log("Spreadsheet: " + ssName);
-  Logger.log("Calendar:    " + calName);
+
+  // Drive scope (Phase 3). Touching the root folder is the cheapest way
+  // to surface the consent prompt; if the Class Resources folder ID is
+  // already configured, also resolve it so we get a clear error here
+  // (instead of from the live web app) when the ID is wrong.
+  var rootName = DriveApp.getRootFolder().getName();
+  var classResourcesName = "(not configured)";
+  try {
+    var folderId = PropertiesService.getScriptProperties()
+      .getProperty(CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY);
+    if (folderId) {
+      classResourcesName = DriveApp.getFolderById(folderId).getName();
+    }
+  } catch (err) {
+    classResourcesName = "(error: " + (err && err.message ? err.message : err) + ")";
+  }
+
+  Logger.log("Spreadsheet:     " + ssName);
+  Logger.log("Calendar:        " + calName);
+  Logger.log("Drive root:      " + rootName);
+  Logger.log("Class Resources: " + classResourcesName);
   Logger.log(
     "Authorization complete. Re-deploy (Manage deployments → ✏️ → New version) " +
     "if you haven't already."
   );
-  return { ok: true, spreadsheet: ssName, calendar: calName };
+  return {
+    ok: true,
+    spreadsheet: ssName,
+    calendar: calName,
+    driveRoot: rootName,
+    classResources: classResourcesName
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -790,6 +854,256 @@ function eventEditUrl(event) {
   var id = atIdx > 0 ? raw.substring(0, atIdx) : raw;
   return "https://calendar.google.com/calendar/u/0/r/eventedit/" +
     Utilities.base64Encode(id + " " + CalendarApp.getDefaultCalendar().getId());
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 3 — Class Resources (shared Drive folder)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns a snapshot of the Class Resources folder for the Dashboard:
+ * folder metadata + a list of its top-level children. Read-only — does
+ * not touch permissions. Sub-folders are returned alongside files (the
+ * UI treats them as "open in Drive" items, same as files).
+ *
+ * Returns up to CLASS_RESOURCES_LIST_CAP entries, sorted by modified
+ * time descending, so the most recently touched material surfaces first
+ * even if the folder grows.
+ */
+function handleListClassResources(payload) {
+  var folder = getClassResourcesFolder();
+  var files = listFolderFiles(folder);
+  return {
+    ok: true,
+    folder: {
+      id: folder.getId(),
+      name: folder.getName(),
+      webViewLink: folder.getUrl()
+    },
+    files: files
+  };
+}
+
+/**
+ * Grants viewer access on the Class Resources folder to every email in
+ * the student roster (Form Responses 1) plus CLASS_RESOURCES_EXTRA_VIEWERS.
+ *
+ * Idempotent: emails that already have access are reported under
+ * `alreadyHadAccess` and not re-added. Per-email errors (invalid email,
+ * Drive rejection, etc.) are collected into `errors` so a single bad
+ * row doesn't poison the whole sync.
+ *
+ * The script owner is intentionally excluded from the grant loop — they
+ * own the folder and addViewer would error.
+ */
+function handleSyncClassResourcesAccess(payload) {
+  var folder = getClassResourcesFolder();
+
+  var rosterEmails = getStudentEmails();
+  var extraEmails = (CLASS_RESOURCES_EXTRA_VIEWERS || []).map(function (e) {
+    return String(e || "").trim().toLowerCase();
+  }).filter(function (e) { return e !== ""; });
+
+  // Build the "skip self" set. The folder's `getOwner()` is unreliable
+  // for shared-drive sub-folders (it can return the shared drive
+  // entity, null, or throw), so also skip the email of the user the
+  // web app runs as — that's the canonical "the script owner already
+  // has access" check, and it works in both My Drive and shared drives.
+  var skip = {};
+  try {
+    var ownerEmail = String(folder.getOwner().getEmail() || "").toLowerCase();
+    if (ownerEmail) skip[ownerEmail] = true;
+  } catch (err) {
+    // Shared-drive folders without a single owner — fall through.
+  }
+  try {
+    var selfEmail = String(Session.getEffectiveUser().getEmail() || "").toLowerCase();
+    if (selfEmail) skip[selfEmail] = true;
+  } catch (err) {
+    // Session.getEffectiveUser is gated by scope on some accounts; safe to ignore.
+  }
+
+  var seen = {};
+  var targets = [];
+  rosterEmails.concat(extraEmails).forEach(function (email) {
+    if (!email) return;
+    if (skip[email]) return;
+    if (seen[email]) return;
+    seen[email] = true;
+    targets.push(email);
+  });
+
+  var existingViewers = {};
+  try {
+    folder.getViewers().forEach(function (user) {
+      var em = String(user.getEmail() || "").toLowerCase();
+      if (em) existingViewers[em] = true;
+    });
+    folder.getEditors().forEach(function (user) {
+      var em = String(user.getEmail() || "").toLowerCase();
+      if (em) existingViewers[em] = true;
+    });
+  } catch (err) {
+    // Some shared-drive configs throw on getViewers/getEditors enumeration.
+    // Treat as "no prior access known" and let addViewer be the source of truth.
+  }
+
+  var granted = [];
+  var alreadyHadAccess = [];
+  var errors = [];
+
+  targets.forEach(function (email) {
+    if (existingViewers[email]) {
+      alreadyHadAccess.push(email);
+      return;
+    }
+    try {
+      folder.addViewer(email);
+      granted.push(email);
+    } catch (err) {
+      errors.push({
+        email: email,
+        message: err && err.message ? err.message : String(err)
+      });
+    }
+  });
+
+  return {
+    ok: true,
+    folder: { id: folder.getId(), name: folder.getName() },
+    granted: granted,
+    alreadyHadAccess: alreadyHadAccess,
+    errors: errors
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 3 — helpers
+// ──────────────────────────────────────────────────────────────────────
+
+/** Maximum number of children returned by handleListClassResources. */
+var CLASS_RESOURCES_LIST_CAP = 100;
+
+/**
+ * Resolves the Class Resources folder via its Script Property ID.
+ * Throws (with a teacher-friendly message) when the property is unset
+ * or the ID points at something Drive can't open — both of these
+ * messages bubble back to the dashboard as the action's error so the
+ * teacher sees what to fix.
+ */
+function getClassResourcesFolder() {
+  var folderId = PropertiesService.getScriptProperties()
+    .getProperty(CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY);
+  if (!folderId) {
+    throw new Error(
+      'Class Resources folder is not configured. Set the "' +
+      CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY +
+      '" Script Property to the folder id from its Drive URL.'
+    );
+  }
+  try {
+    return DriveApp.getFolderById(folderId);
+  } catch (err) {
+    throw new Error(
+      'Could not open Class Resources folder (id "' + folderId + '"): ' +
+      (err && err.message ? err.message : String(err))
+    );
+  }
+}
+
+/**
+ * Lists immediate children of a folder (files + sub-folders), sorted
+ * by modified time descending. Capped at CLASS_RESOURCES_LIST_CAP.
+ *
+ * webViewLink is taken from `getUrl()` for both files and folders;
+ * iconLink falls back to a Drive-hosted generic icon when Apps Script
+ * doesn't expose one for the mime type.
+ */
+function listFolderFiles(folder) {
+  var entries = [];
+
+  var fileIter = folder.getFiles();
+  while (fileIter.hasNext()) {
+    var f = fileIter.next();
+    entries.push({
+      id: f.getId(),
+      name: f.getName(),
+      mimeType: f.getMimeType(),
+      modifiedTime: f.getLastUpdated().toISOString(),
+      webViewLink: f.getUrl(),
+      iconLink: iconLinkForMimeType(f.getMimeType()),
+      isFolder: false
+    });
+  }
+
+  var subIter = folder.getFolders();
+  while (subIter.hasNext()) {
+    var sf = subIter.next();
+    entries.push({
+      id: sf.getId(),
+      name: sf.getName(),
+      mimeType: "application/vnd.google-apps.folder",
+      modifiedTime: sf.getLastUpdated().toISOString(),
+      webViewLink: sf.getUrl(),
+      iconLink: iconLinkForMimeType("application/vnd.google-apps.folder"),
+      isFolder: true
+    });
+  }
+
+  entries.sort(function (a, b) {
+    return (b.modifiedTime || "").localeCompare(a.modifiedTime || "");
+  });
+
+  if (entries.length > CLASS_RESOURCES_LIST_CAP) {
+    entries = entries.slice(0, CLASS_RESOURCES_LIST_CAP);
+  }
+  return entries;
+}
+
+/**
+ * Stable Drive icon URL for a given mime type. Drive's CDN serves
+ * 16-px icons keyed by mime type; falling back to the generic file
+ * icon when the type isn't recognized keeps the UI tidy.
+ */
+function iconLinkForMimeType(mimeType) {
+  var base = "https://drive-thirdparty.googleusercontent.com/16/type/";
+  if (!mimeType) return base + "application/octet-stream";
+  return base + mimeType;
+}
+
+/**
+ * Reads "Form Responses 1" and returns the deduped, lowercased list of
+ * student email addresses. Skips blanks. Does NOT validate format —
+ * Drive will reject genuinely malformed addresses on addViewer, and
+ * the sync handler reports those as per-email errors.
+ */
+function getStudentEmails() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Form Responses 1");
+  if (!sheet) {
+    throw new Error('Sheet "Form Responses 1" not found');
+  }
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  var headers = data[0].map(function (h) {
+    return String(h || "").trim().toLowerCase();
+  });
+  var emailCol = headers.indexOf("email address");
+  if (emailCol === -1) {
+    throw new Error('Could not find "Email Address" column in Form Responses 1');
+  }
+
+  var seen = {};
+  var emails = [];
+  for (var r = 1; r < data.length; r++) {
+    var raw = String(data[r][emailCol] || "").trim().toLowerCase();
+    if (!raw) continue;
+    if (seen[raw]) continue;
+    seen[raw] = true;
+    emails.push(raw);
+  }
+  return emails;
 }
 
 /**
