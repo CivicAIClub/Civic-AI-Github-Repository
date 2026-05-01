@@ -1473,3 +1473,276 @@ a:hover {
   height: 56px;
   font-size: 1.4rem;
 }
+
+/* ────────────────────────────────────────────────────────────────────
+ * Phase 2 — Buttons (primary CTA), Pending Lessons, Event preview modal.
+ * The existing styles only had .button-ghost; add a primary .button
+ * class for the Phase 2 CTAs ("Create event", "Done", etc.).
+ * ──────────────────────────────────────────────────────────────────── */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0.6rem 1.1rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.button:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.link:hover {
+  color: var(--accent-hover);
+}
+
+.status-pill--draft {
+  color: var(--status-warning);
+  background: var(--status-warning-soft);
+}
+
+.status-pill--neutral {
+  color: var(--status-neutral);
+  background: var(--status-neutral-soft);
+}
+
+/* Pending Lessons section ─────────────────────────────────────────── */
+.pending-lessons-card {
+  border-color: var(--accent-border-subtle);
+}
+
+.pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pending-list__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.pending-list__item:hover {
+  border-color: var(--accent-border-subtle);
+  box-shadow: var(--shadow);
+}
+
+.pending-list__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 0.35rem 0.55rem;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.pending-list__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pending-list__name {
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.pending-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.pending-list__action {
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .pending-list__item {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "date  main"
+      "action action";
+    row-gap: var(--space-3);
+  }
+  .pending-list__date {
+    grid-area: date;
+  }
+  .pending-list__main {
+    grid-area: main;
+  }
+  .pending-list__action {
+    grid-area: action;
+    width: 100%;
+  }
+}
+
+/* Event preview modal ─────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(20, 14, 10, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(2rem, 6vh) var(--space-4) var(--space-6);
+  overflow-y: auto;
+  animation: modal-fade 0.18s var(--ease-out);
+}
+
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card-hover);
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: modal-rise 0.22s var(--ease-out);
+}
+
+@keyframes modal-rise {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+.modal-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.modal-card__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.modal-card__loading {
+  margin: 0;
+}
+
+.modal-card__error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modal-card__notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--status-warning-soft);
+  color: var(--status-warning);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.modal-card__success {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modal-card__success p {
+  margin: 0;
+}
+
+.modal-card__body {
+  margin: 0;
+}
+
+.modal-card__attendees {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.modal-card__attendees li {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.85rem;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  border-radius: var(--radius-pill);
+}
+
+.modal-card__description {
+  margin: 0;
+  padding: var(--space-3);
+  font: inherit;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.modal-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}

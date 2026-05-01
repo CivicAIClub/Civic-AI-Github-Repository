@@ -37,4 +37,10 @@ export type ScheduledLesson = {
   lessonFocus: string;
   /** From sheet column "Note" or "Notes" */
   note: string;
+  /**
+   * Phase 2: Google Calendar event ID once the lesson has been
+   * auto-scheduled. Empty string when the lesson is still pending.
+   * Auto-populated by the `create-event` Apps Script action.
+   */
+  calendarEventId: string;
 };

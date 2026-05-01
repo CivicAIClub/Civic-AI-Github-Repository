@@ -9,6 +9,11 @@ export function normalizeStatus(status: string): string {
 /**
  * Treat a blank status cell as "scheduled" so a teacher who forgets to fill
  * the Status column still sees the lesson on the dashboard.
+ *
+ * Phase 2 caveat: a lesson is treated as Pending (not Upcoming) when its
+ * Status is blank/Draft *and* it has no Calendar Event ID — see
+ * `isPendingLesson` below. Callers that want the Upcoming view must
+ * exclude pending rows separately.
  */
 function statusLowerOrDefault(status: string): string {
   const s = normalizeStatus(status).toLowerCase();
@@ -98,12 +103,44 @@ export function formatLessonBlockDisplay(lesson: ScheduledLesson): string {
 }
 
 /**
+ * Phase 2: Pending = a row the teacher has filled in but hasn't run
+ * "Preview & schedule" on yet. We detect this by:
+ *   - no Calendar Event ID written back
+ *   - Status is blank or literally "Draft"
+ *   - lesson is today or in the future
+ *
+ * Completed/Cancelled rows never count as Pending. Once an event is
+ * created, the Apps Script side writes the Event ID and flips Status
+ * to "Scheduled", which moves the row into Upcoming on the next refresh.
+ */
+export function isPendingLesson(lesson: ScheduledLesson, now: Date = new Date()): boolean {
+  if (lesson.calendarEventId.trim() !== "") return false;
+  const st = normalizeStatus(lesson.status).toLowerCase();
+  if (st !== "" && st !== "draft") return false;
+
+  const dt = lessonDateTime(lesson);
+  if (!dt) return false;
+  const dayStart = startOfLocalDay(now);
+  const lessonDay = startOfLocalDay(dt);
+  if (lessonDay.getTime() < dayStart.getTime()) return false;
+  if (lessonDay.getTime() > dayStart.getTime()) return true;
+
+  const endDt = lessonEndDateTime(lesson);
+  if (!endDt) return true;
+  return endDt.getTime() >= now.getTime();
+}
+
+/**
  * Upcoming = future date OR same day with end time still ahead, AND status is
  * Scheduled / Rescheduled (or blank, treated as Scheduled). Completed and
  * Cancelled are excluded so the dashboard stays forward-looking. A same-day
  * lesson rolls off "Upcoming" once its end time has passed.
+ *
+ * Phase 2: rows that satisfy `isPendingLesson` are excluded so the same
+ * row never appears in both the Pending and Upcoming sections.
  */
 export function isUpcomingLesson(lesson: ScheduledLesson, now: Date = new Date()): boolean {
+  if (isPendingLesson(lesson, now)) return false;
   const st = statusLowerOrDefault(lesson.status);
   if (st === "completed" || st === "cancelled") return false;
   if (st !== "scheduled" && st !== "rescheduled") return false;
@@ -118,6 +155,16 @@ export function isUpcomingLesson(lesson: ScheduledLesson, now: Date = new Date()
   const endDt = lessonEndDateTime(lesson);
   if (!endDt) return true;
   return endDt.getTime() >= now.getTime();
+}
+
+/** All pending lessons sorted soonest-first (Dashboard "Pending" section). */
+export function pendingLessonsSorted(
+  lessons: ScheduledLesson[],
+  now?: Date
+): ScheduledLesson[] {
+  return lessons
+    .filter((l) => isPendingLesson(l, now))
+    .sort(compareLessonsByDateTime);
 }
 
 function sortTimeKey(lesson: ScheduledLesson): string {

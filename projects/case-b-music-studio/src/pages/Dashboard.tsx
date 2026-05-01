@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getScheduleList } from "../api/appsScriptSchedule";
 import { getAllStudents } from "../api/appsScriptStudent";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
+import type { LessonRowKey } from "../api/appsScriptCalendar";
 import {
   lessonStableKey,
   upcomingLessonsSorted,
@@ -18,6 +19,8 @@ import {
   EXTERNAL_LINK_ORDER,
 } from "../lib/externalLinks";
 import { LessonRow } from "../components/LessonRow";
+import { PendingLessonsSection } from "../components/PendingLessonsSection";
+import { EventPreviewModal } from "../components/EventPreviewModal";
 import type { ScheduledLesson, Student } from "../types";
 
 function clipText(s: string, max = 160): string {
@@ -44,6 +47,22 @@ export function Dashboard() {
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleLessons, setScheduleLessons] = useState<ScheduledLesson[]>([]);
 
+  /**
+   * Phase 2: lesson currently open in the preview modal. Identified by
+   * composite key so the modal can re-fetch a fresh preview on each
+   * open without needing a Lesson ID column on the sheet.
+   */
+  const [pendingPreviewKey, setPendingPreviewKey] = useState<
+    LessonRowKey | null
+  >(null);
+
+  /**
+   * Bumped after a successful event creation to trigger the schedule
+   * effect to re-run. Cheaper than threading an explicit refetch
+   * function through the modal.
+   */
+  const [scheduleRefreshToken, setScheduleRefreshToken] = useState(0);
+
   const upcomingForDashboard = useMemo(() => {
     return upcomingLessonsSorted(scheduleLessons).slice(0, 20);
   }, [scheduleLessons]);
@@ -66,6 +85,18 @@ export function Dashboard() {
         setScheduleLoadStatus("error");
       });
     return () => ac.abort();
+  }, [scheduleRefreshToken]);
+
+  const openPreviewFor = useCallback((lesson: ScheduledLesson) => {
+    setPendingPreviewKey({
+      studentEmail: lesson.studentEmail,
+      lessonDate: lesson.lessonDate,
+      startTime: lesson.startTime,
+    });
+  }, []);
+
+  const handleEventCreated = useCallback(() => {
+    setScheduleRefreshToken((n) => n + 1);
   }, []);
 
   // Same roster as the Students page (Apps Script ?action=list) for count + quick search.
@@ -273,6 +304,11 @@ export function Dashboard() {
             )}
         </section>
 
+        <PendingLessonsSection
+          lessons={scheduleLessons}
+          onPreview={openPreviewFor}
+        />
+
         <section className="card span-2">
           <h2 className="card__title">Upcoming lessons</h2>
           <p className="muted profile-updates-intro">
@@ -349,6 +385,12 @@ export function Dashboard() {
           </ul>
         </section>
       </div>
+
+      <EventPreviewModal
+        lessonKey={pendingPreviewKey}
+        onClose={() => setPendingPreviewKey(null)}
+        onCreated={handleEventCreated}
+      />
     </div>
   );
 }

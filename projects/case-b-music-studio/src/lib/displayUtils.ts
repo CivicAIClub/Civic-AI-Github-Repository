@@ -24,11 +24,13 @@ export type StatusVariant =
   | "rescheduled"
   | "completed"
   | "cancelled"
+  | "draft"
   | "neutral";
 
 export function statusVariant(status: string): StatusVariant {
   const normalized = status.trim().toLowerCase();
   if (!normalized || normalized === "scheduled") return "scheduled";
+  if (normalized === "draft") return "draft";
   if (normalized === "rescheduled") return "rescheduled";
   if (normalized === "completed") return "completed";
   if (normalized === "cancelled" || normalized === "canceled") return "cancelled";
