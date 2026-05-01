@@ -1746,3 +1746,226 @@ a:hover {
   justify-content: flex-end;
   margin-top: var(--space-2);
 }
+
+/* Ghost button — secondary action partner to .button. Used by the
+   Class Resources card (Refresh, Open in Drive, Open ↗) and modal
+   cancel buttons. */
+.button--ghost {
+  color: var(--accent);
+  background: transparent;
+  border-color: var(--accent-border-subtle);
+}
+
+.button--ghost:hover {
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border-color: var(--accent-border-subtle);
+}
+
+/* Standalone error message used outside the modal (e.g. Class
+   Resources load failures). Visually consistent with .modal-card__error
+   but laid out for inline placement inside a card. */
+.status-error {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--status-danger-soft);
+  color: var(--status-danger);
+  border: 1px solid var(--status-danger);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.status-error-inline {
+  color: var(--status-danger);
+}
+
+/* Class Resources section ────────────────────────────────────────── */
+.class-resources-card {
+  border-color: var(--accent-border-subtle);
+}
+
+.class-resources-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.class-resources-card__header > div {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.class-resources-card__open {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.class-resources-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.class-resources-card__sync-status {
+  margin: var(--space-3) 0 0;
+}
+
+.class-resources-card__sync-report {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.class-resources-card__sync-summary {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.class-resources-card__sync-details {
+  font-size: 0.9rem;
+}
+
+.class-resources-card__sync-details summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.class-resources-card__sync-details[open] summary {
+  margin-bottom: var(--space-2);
+}
+
+.class-resources-card__email-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.class-resources-card__email-list code {
+  background: var(--surface);
+  padding: 0 0.25rem;
+  border-radius: 3px;
+}
+
+.resource-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.resource-list__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.resource-list__item:hover {
+  border-color: var(--accent-border-subtle);
+  box-shadow: var(--shadow);
+}
+
+.resource-list__icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: block;
+}
+
+.resource-list__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.resource-list__name {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  letter-spacing: -0.005em;
+  word-break: break-word;
+}
+
+.resource-list__name:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.resource-list__badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--status-info);
+  background: var(--status-info-soft);
+  border-radius: 999px;
+}
+
+.resource-list__meta {
+  font-size: 0.82rem;
+}
+
+.resource-list__open {
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .class-resources-card__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .class-resources-card__open {
+    align-self: stretch;
+    text-align: center;
+  }
+  .resource-list__item {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "icon main"
+      "open open";
+    row-gap: var(--space-2);
+  }
+  .resource-list__icon {
+    grid-area: icon;
+  }
+  .resource-list__main {
+    grid-area: main;
+  }
+  .resource-list__open {
+    grid-area: open;
+    width: 100%;
+  }
+}
