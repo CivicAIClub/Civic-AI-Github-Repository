@@ -27,7 +27,7 @@ import {
 import { pickLatestProfileFromSubmissions } from "../lib/formSubmissionHistory";
 
 export const APPS_SCRIPT_BASE_URL =
-  "https://script.google.com/macros/s/AKfycbwQnBSy26Wo54JwOIMAbaCJf37qAPF_kHpBxIJrm8AanfmxRSmGJIBKjYdHuaU2yxpN9g/exec";
+  "https://script.google.com/macros/s/AKfycbyjZZbJZryN-5Gnh1hWGem913qo4Sr2K84qkZGMCjRSnE7JaVWnPZQI8gPNvS5cmY6zvQ/exec";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

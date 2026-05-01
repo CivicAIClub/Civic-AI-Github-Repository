@@ -12,6 +12,12 @@ const SCHEDULE_KEYS = {
   lessonFocus: "Lesson Focus",
   note: "Note",
   noteAlt: "Notes",
+  /**
+   * Phase 2 column. Auto-added to the sheet by the Apps Script side on
+   * the first calendar action; reads as empty for any row that hasn't
+   * been scheduled yet.
+   */
+  calendarEventId: "Calendar Event ID",
 } as const;
 
 function cell(raw: Record<string, unknown>, key: string): string {
@@ -46,5 +52,6 @@ export function mapScheduleRowToLesson(
     status: cell(raw, SCHEDULE_KEYS.status),
     lessonFocus: cell(raw, SCHEDULE_KEYS.lessonFocus),
     note: cellNote(raw),
+    calendarEventId: cell(raw, SCHEDULE_KEYS.calendarEventId),
   };
 }
