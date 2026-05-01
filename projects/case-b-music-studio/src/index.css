@@ -1969,3 +1969,86 @@ a:hover {
     width: 100%;
   }
 }
+
+/* Student Resources section (per-student folder) ───────────────────
+   Lives inside the student profile panel. Reuses .resource-list from
+   the Class Resources card so the file row UI is consistent across
+   the two surfaces. */
+.student-resources-section__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.student-resources-section__header .profile-section__heading {
+  margin: 0;
+}
+
+.student-resources-section__open {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.student-resources-section__lede {
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+.student-resources-section__status {
+  margin: var(--space-2) 0 0;
+}
+
+.student-resources-section__error-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* One-shot success affordance shown only the first time a folder is
+   created for this student. Subtle — same accent-soft language as
+   .button--ghost hover. */
+.student-resources-section__created {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.student-resources-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 600px) {
+  .student-resources-section__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .student-resources-section__open {
+    align-self: stretch;
+    text-align: center;
+  }
+}
+
+/* Student folders sync card (Dashboard admin action) ────────────── */
+.student-folders-sync-card {
+  border-color: var(--accent-border-subtle);
+}
+
+.student-folders-sync-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.student-folders-sync-card__sync-status {
+  margin: var(--space-3) 0 0;
+}

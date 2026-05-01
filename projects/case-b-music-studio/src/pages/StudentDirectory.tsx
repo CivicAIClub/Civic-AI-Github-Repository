@@ -21,6 +21,7 @@ import {
 } from "../lib/dateUtils";
 import { studentInitials } from "../lib/displayUtils";
 import { LessonRow } from "../components/LessonRow";
+import { StudentResourcesSection } from "../components/StudentResourcesSection";
 import type { ScheduledLesson, Student } from "../types";
 
 const RECENT_LESSONS_INITIAL_VISIBLE = 5;
@@ -411,6 +412,11 @@ function StudentDetailPanel({
           )}
         </div>
       </section>
+
+      <StudentResourcesSection
+        studentEmail={student.sheetEmail ?? student.id}
+        studentName={student.name}
+      />
 
       <section className="profile-section profile-section--notes" aria-labelledby="profile-teacher-h">
         <div className="notes-card">
