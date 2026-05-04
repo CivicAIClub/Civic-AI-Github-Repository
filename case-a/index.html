@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoPlanner — CLC</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-dim: #0ea5e9;
+      --ok: #4ade80;
+      --warn: #fbbf24;
+      --err: #f87171;
+      --radius: 12px;
+      --font: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: linear-gradient(160deg, var(--bg) 0%, #162032 50%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    a { color: var(--accent); }
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+    header {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      font-size: clamp(1.35rem, 4vw, 1.85rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin-top: 0.35rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+      max-width: 52ch;
+    }
+
+    .banner {
+      display: none;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      background: rgba(251, 191, 36, 0.12);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      color: #fde68a;
+      font-size: 0.88rem;
+    }
+    .banner.visible { display: block; }
+
+    .steps {
+      display: grid;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 720px) {
+      .steps { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    .step-pill {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      padding: 0.75rem 0.85rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .step-pill strong {
+      display: block;
+      color: var(--text);
+      font-size: 0.88rem;
+      margin-bottom: 0.15rem;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 1.65rem;
+      height: 1.65rem;
+      border-radius: 8px;
+      background: var(--surface2);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.15rem 1.2rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h2 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.85rem;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.85rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 200px;
+    }
+    .form-group.wide { flex: 1 1 100%; min-width: 0; }
+
+    label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      line-height: 1.45;
+    }
+
+    input, select, textarea {
+      padding: 0.55rem 0.7rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--text);
+      background: var(--surface2);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input::placeholder, textarea::placeholder { color: #64748b; }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    textarea.token-field {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      min-height: 2.6rem;
+      resize: vertical;
+    }
+
+    .btn-row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-top: 0.5rem; }
+
+    button {
+      padding: 0.55rem 1.1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s, transform 0.08s;
+    }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-dim), #0284c7);
+      color: #0f172a;
+    }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--surface2); color: var(--text); }
+
+    .btn-danger-ghost {
+      background: transparent;
+      color: var(--err);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      font-size: 0.8rem;
+      padding: 0.35rem 0.65rem;
+    }
+    .btn-danger-ghost:hover:not(:disabled) { background: rgba(248, 113, 113, 0.1); }
+
+    .status { margin-top: 0.65rem; font-size: 0.86rem; min-height: 1.25rem; }
+    .status.loading { color: var(--muted); }
+    .status.error { color: var(--err); font-weight: 600; }
+    .status.success { color: var(--ok); font-weight: 600; }
+
+    .student-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .student-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+    }
+    .student-card-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.65rem;
+    }
+    .student-card-head span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .preview-wrap { display: none; }
+    .preview-wrap.visible { display: block; }
+
+    .tabs-scroll {
+      display: flex;
+      gap: 0.35rem;
+      overflow-x: auto;
+      padding-bottom: 0.35rem;
+      margin-bottom: 0.85rem;
+      scrollbar-width: thin;
+    }
+
+    [role="tab"] {
+      flex-shrink: 0;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    [role="tab"][aria-selected="true"] {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    [role="tab"] .badge {
+      margin-left: 0.35rem;
+      font-size: 0.72rem;
+      opacity: 0.9;
+    }
+    [role="tab"].tab-err { border-color: rgba(248, 113, 113, 0.5); color: var(--err); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .panel-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+      margin: 1rem 0 0.5rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .doc-strip {
+      display: none;
+      margin-top: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.35);
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .doc-strip.visible { display: flex; }
+    .doc-strip a { font-weight: 700; color: var(--ok); text-decoration: none; }
+    .doc-strip a:hover { text-decoration: underline; }
+
+    .week-block { margin-bottom: 1.25rem; }
+    .week-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--text);
+      padding: 0.45rem 0.5rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid rgba(51, 65, 85, 0.6); }
+    tbody td { padding: 0.4rem 0.5rem; vertical-align: middle; color: #e2e8f0; }
+    tbody tr.data-row:hover td { filter: brightness(1.06); }
+
+    .day-row td {
+      background: #334155 !important;
+      color: #f1f5f9 !important;
+      font-weight: 700;
+      padding: 0.28rem 0.5rem;
+    }
+
+    .priority-badge {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .priority-Today     { background: #7f1d1d; color: #fecaca; }
+    .priority-Tomorrow  { background: #7c2d12; color: #fed7aa; }
+    .priority-Due-Soon  { background: #713f12; color: #fef08a; }
+    .priority-This-Week { background: #14532d; color: #bbf7d0; }
+    .priority-Upcoming  { background: #1e3a5f; color: #bfdbfe; }
+
+    .assignment-link {
+      color: #7dd3fc;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .assignment-link:hover { text-decoration: underline; }
+
+    .empty-week { color: var(--muted); font-style: italic; padding: 0.5rem 0; font-size: 0.85rem; }
+
+    .panel-error {
+      padding: 1rem;
+      border-radius: 8px;
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+      font-size: 0.88rem;
+    }
+
+    .privacy-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.65rem;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>AutoPlanner</h1>
+      <p>
+        Teachers: add each student’s Canvas token, preview everyone’s schedule on separate tabs,
+        then export each student’s <strong>Google Doc</strong> (week tabs under <strong>CLC Planner</strong>).
+      </p>
+    </header>
+
+    <div class="banner visible" id="backendBanner" role="status"></div>
+
+    <div class="steps" aria-hidden="true">
+      <div class="step-pill">
+        <span class="step-num">1</span>
+        <div><strong>Connect</strong>Backend URL (if this site is on GitHub Pages) and your school’s Canvas base URL.</div>
+      </div>
+      <div class="step-pill">
+        <span class="step-num">2</span>
+        <div><strong>Students</strong>Each learner creates a token in Canvas → Settings → New access token.</div>
+      </div>
+      <div class="step-pill">
+        <span class="step-num">3</span>
+        <div><strong>Fetch &amp; export</strong>Load all schedules, review tabs, then create or update each Doc.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Connection</h2>
+      <div class="form-row">
+        <div class="form-group wide">
+          <label for="apiBackendUrl">AutoPlanner API URL</label>
+          <input
+            id="apiBackendUrl"
+            type="url"
+            placeholder="https://your-autoplanner-api.example.com"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <p class="hint">
+            On <strong>GitHub Pages</strong> this is required: paste the public URL of your deployed FastAPI app
+            (trailing slash optional). On <strong>http://127.0.0.1:8000/</strong> you can leave this blank.
+          </p>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group wide">
+          <label for="baseUrl">Canvas base URL (same for all students)</label>
+          <input
+            id="baseUrl"
+            type="url"
+            placeholder="https://yourschool.instructure.com"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="form-group" style="max-width: 220px;">
+          <label for="weeksAhead">Weeks ahead</label>
+          <select id="weeksAhead">
+            <option value="1">This week</option>
+            <option value="2" selected>This + next</option>
+            <option value="3">3 weeks</option>
+            <option value="4">4 weeks</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Students &amp; tokens</h2>
+      <p class="hint" style="margin-bottom: 0.85rem;">
+        Optional <strong>label</strong> is only for your own organization (e.g. desk number). After a successful fetch,
+        tabs use each student’s Canvas display name when available.
+      </p>
+      <div class="student-list" id="studentList"></div>
+      <div class="btn-row">
+        <button type="button" class="btn-ghost" id="addStudentBtn">+ Add student</button>
+      </div>
+      <p class="privacy-note">
+        Tokens are stored in this browser’s local storage so you do not have to paste them every visit.
+        Avoid this on shared computers. You can clear site data anytime.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Load schedules</h2>
+      <div class="btn-row">
+        <button type="button" class="btn-primary" id="fetchBtn">Fetch all students</button>
+      </div>
+      <p class="status" id="fetchStatus"></p>
+    </div>
+
+    <div class="card preview-wrap" id="previewCard">
+      <h2>Preview &amp; Google Doc</h2>
+      <div class="tabs-scroll" id="tabList" role="tablist" aria-label="Students"></div>
+      <div id="tabPanels"></div>
+    </div>
+  </div>
+
+  <script>
+    const LS_API_BASE = "autoplanner_api_base";
+    const LS_ROSTER = "autoplanner_student_roster";
+    const LS_DOC_MAP = "autoplanner_document_ids";
+    const LS_LEGACY_TOKEN = "canvas_api_token";
+    const LS_LEGACY_DOC = "autoplanner_document_id";
+
+    /** @type {{ id: string, label: string, token: string }[]} */
+    let roster = [];
+    /** @type {Record<string, { schedule: object|null, error: string|null }>} */
+    let resultsById = {};
+    let activeStudentId = null;
+
+    const COURSE_COLORS = [
+      "#1e3a5f", "#14532d", "#713f12", "#831843", "#312e81", "#164e63",
+      "#422006", "#134e4a", "#4c0519", "#365314", "#0c4a6e",
+    ];
+    const PRIORITY_BG = {
+      Today: "#991b1b",
+      Tomorrow: "#9a3412",
+      "Due Soon": "#a16207",
+      "This Week": "#166534",
+      Upcoming: "#1d4ed8",
+    };
+
+    function uuid() {
+      if (crypto.randomUUID) return crypto.randomUUID();
+      return "s" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function apiBase() {
+      const manual = document.getElementById("apiBackendUrl").value.trim().replace(/\/$/, "");
+      if (manual) return manual;
+      const stored = localStorage.getItem(LS_API_BASE);
+      if (stored && stored.trim()) return stored.trim().replace(/\/$/, "");
+      if (window.location.protocol === "file:") return "http://127.0.0.1:8000";
+      const h = window.location.hostname;
+      if (h === "localhost" || h === "127.0.0.1") return "";
+      return "";
+    }
+
+    function isStaticHost() {
+      if (window.location.protocol === "file:") return false;
+      const h = window.location.hostname;
+      if (h === "localhost" || h === "127.0.0.1") return false;
+      return true;
+    }
+
+    function updateBackendBanner() {
+      const el = document.getElementById("backendBanner");
+      if (isStaticHost() && !apiBase()) {
+        el.textContent =
+          "Set AutoPlanner API URL above. GitHub Pages only hosts this page — your FastAPI backend " +
+          "(Canvas proxy + Apps Script caller) must be deployed separately with HTTPS and CORS enabled.";
+        el.classList.add("visible");
+      } else {
+        el.classList.remove("visible");
+      }
+    }
+
+    function formatFetchError(err) {
+      const m = err && err.message ? err.message : String(err);
+      if (
+        m === "Failed to fetch" ||
+        m === "Load failed" ||
+        m.indexOf("NetworkError when attempting to fetch") !== -1
+      ) {
+        const base = apiBase() || "(same origin)";
+        return (
+          "Could not reach the API at " +
+          base +
+          ". Check the URL, CORS, and that uvicorn (or your host) is running."
+        );
+      }
+      return m;
+    }
+
+    function loadDocMap() {
+      try {
+        const raw = localStorage.getItem(LS_DOC_MAP);
+        if (!raw) return {};
+        const o = JSON.parse(raw);
+        return o && typeof o === "object" ? o : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function saveDocMap(map) {
+      localStorage.setItem(LS_DOC_MAP, JSON.stringify(map));
+    }
+
+    function loadRosterFromStorage() {
+      try {
+        const raw = localStorage.getItem(LS_ROSTER);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr) && arr.length) {
+            roster = arr
+              .filter((x) => x && x.id)
+              .map((x) => ({
+                id: String(x.id),
+                label: String(x.label || ""),
+                token: String(x.token || ""),
+              }));
+            return;
+          }
+        }
+      } catch (_) {}
+      roster = [];
+      const legacy = localStorage.getItem(LS_LEGACY_TOKEN);
+      if (legacy && legacy.trim()) {
+        roster.push({ id: uuid(), label: "", token: legacy.trim() });
+        localStorage.removeItem(LS_LEGACY_TOKEN);
+      }
+    }
+
+    function persistRoster() {
+      localStorage.setItem(LS_ROSTER, JSON.stringify(roster));
+    }
+
+    function migrateLegacyDocId() {
+      const legacy = localStorage.getItem(LS_LEGACY_DOC);
+      if (!legacy || !legacy.trim()) return;
+      const map = loadDocMap();
+      if (Object.keys(map).length) {
+        localStorage.removeItem(LS_LEGACY_DOC);
+        return;
+      }
+      if (roster.length === 1) {
+        map[roster[0].id] = legacy.trim();
+        saveDocMap(map);
+      }
+      localStorage.removeItem(LS_LEGACY_DOC);
+    }
+
+    function saveConnection() {
+      localStorage.setItem("canvas_base_url", document.getElementById("baseUrl").value.trim());
+      const backend = document.getElementById("apiBackendUrl").value.trim().replace(/\/$/, "");
+      if (backend) localStorage.setItem(LS_API_BASE, backend);
+      else localStorage.removeItem(LS_API_BASE);
+      updateBackendBanner();
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("apiBackendUrl").value = localStorage.getItem(LS_API_BASE) || "";
+      document.getElementById("baseUrl").value = localStorage.getItem("canvas_base_url") || "";
+      loadRosterFromStorage();
+      if (!roster.length) roster.push({ id: uuid(), label: "", token: "" });
+      migrateLegacyDocId();
+      persistRoster();
+      renderStudentList();
+      updateBackendBanner();
+      localStorage.removeItem("autoplanner_spreadsheet_id");
+
+      document.getElementById("apiBackendUrl").addEventListener("input", updateBackendBanner);
+      document.getElementById("addStudentBtn").addEventListener("click", () => {
+        roster.push({ id: uuid(), label: "", token: "" });
+        persistRoster();
+        renderStudentList();
+      });
+    });
+
+    function renderStudentList() {
+      const root = document.getElementById("studentList");
+      root.innerHTML = "";
+      roster.forEach((s, idx) => {
+        const card = document.createElement("div");
+        card.className = "student-card";
+        card.dataset.studentId = s.id;
+        card.innerHTML = `
+          <div class="student-card-head">
+            <span>Student ${idx + 1}</span>
+            <button type="button" class="btn-danger-ghost btn-remove" data-id="${s.id}">Remove</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="min-width: 140px; max-width: 200px;">
+              <label>Label (optional)</label>
+              <input type="text" class="inp-label" data-id="${s.id}" placeholder="e.g. Table 4" value="${escAttr(s.label)}" />
+            </div>
+            <div class="form-group wide">
+              <label>Canvas API token</label>
+              <textarea class="token-field inp-token" data-id="${s.id}" rows="2" placeholder="Student’s token from Canvas → Settings" spellcheck="false">${escAttr(s.token)}</textarea>
+            </div>
+          </div>
+        `;
+        root.appendChild(card);
+        card.querySelector(".inp-label").addEventListener("input", (e) => {
+          const id = e.target.dataset.id;
+          const row = roster.find((r) => r.id === id);
+          if (row) row.label = e.target.value;
+          persistRoster();
+        });
+        card.querySelector(".inp-token").addEventListener("input", (e) => {
+          const id = e.target.dataset.id;
+          const row = roster.find((r) => r.id === id);
+          if (row) row.token = e.target.value;
+          persistRoster();
+        });
+        card.querySelector(".btn-remove").addEventListener("click", () => {
+          removeStudent(s.id);
+        });
+      });
+    }
+
+    function removeStudent(id) {
+      roster = roster.filter((r) => r.id !== id);
+      if (!roster.length) roster.push({ id: uuid(), label: "", token: "" });
+      const map = loadDocMap();
+      delete map[id];
+      saveDocMap(map);
+      persistRoster();
+      delete resultsById[id];
+      if (activeStudentId === id) activeStudentId = null;
+      renderStudentList();
+      if (Object.keys(resultsById).length) renderTabsAndPanels();
+      else document.getElementById("previewCard").classList.remove("visible");
+    }
+
+    function escAttr(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;");
+    }
+
+    function escHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatApiDetail(payload) {
+      if (!payload || payload.detail === undefined || payload.detail === null) return "";
+      const d = payload.detail;
+      if (typeof d === "string") return d;
+      if (Array.isArray(d)) {
+        return d
+          .map((item) =>
+            typeof item === "object" && item.msg ? item.msg : JSON.stringify(item)
+          )
+          .join("; ");
+      }
+      return String(d);
+    }
+
+    function tabTitleFor(studentId) {
+      const r = roster.find((x) => x.id === studentId);
+      const res = resultsById[studentId];
+      const canvasName =
+        res && res.schedule && res.schedule.student_full_name
+          ? String(res.schedule.student_full_name).trim()
+          : "";
+      if (canvasName) return canvasName;
+      if (r && r.label && r.label.trim()) return r.label.trim();
+      return "Student";
+    }
+
+    function setStatus(id, type, message) {
+      const el = document.getElementById(id);
+      el.className = "status " + type;
+      el.textContent = message;
+    }
+
+    function setBtnDisabled(id, dis) {
+      document.getElementById(id).disabled = dis;
+    }
+
+    function hashString(str) {
+      let hash = 0;
+      const s = String(str || "");
+      for (let i = 0; i < s.length; i++) {
+        hash = (hash * 31 + s.charCodeAt(i)) & 0x7fffffff;
+      }
+      return hash;
+    }
+
+    function collectCourseNames(days) {
+      const names = [];
+      (days || []).forEach((dayObj) => {
+        (dayObj.assignments || []).forEach((a) => {
+          const c = a.course;
+          if (c && !names.includes(c)) names.push(c);
+        });
+      });
+      return names;
+    }
+
+    function buildCourseColorMap(days) {
+      const names = collectCourseNames(days).sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base" })
+      );
+      const map = {};
+      names.forEach((name, i) => {
+        map[name] = COURSE_COLORS[i % COURSE_COLORS.length];
+      });
+      return map;
+    }
+
+    async function fetchAssignments() {
+      saveConnection();
+      persistRoster();
+      updateBackendBanner();
+
+      if (isStaticHost() && !apiBase()) {
+        setStatus("fetchStatus", "error", "Set AutoPlanner API URL before fetching.");
+        return;
+      }
+
+      const baseUrl = document.getElementById("baseUrl").value.trim();
+      const weeksAhead = parseInt(document.getElementById("weeksAhead").value, 10);
+      const withToken = roster.filter((r) => r.token.trim());
+
+      if (!baseUrl) {
+        setStatus("fetchStatus", "error", "Enter your school’s Canvas base URL.");
+        return;
+      }
+      if (!withToken.length) {
+        setStatus("fetchStatus", "error", "Add at least one student and paste their Canvas API token.");
+        return;
+      }
+
+      setStatus("fetchStatus", "loading", `Fetching ${withToken.length} student(s) from Canvas…`);
+      setBtnDisabled("fetchBtn", true);
+      document.getElementById("previewCard").classList.remove("visible");
+      resultsById = {};
+
+      const qBase = new URLSearchParams({
+        weeks_ahead: String(weeksAhead),
+        canvas_base_url: baseUrl,
+      });
+
+      const tasks = withToken.map(async (r) => {
+        const q = new URLSearchParams(qBase);
+        q.set("canvas_token", r.token.trim());
+        try {
+          const res = await fetch(`${apiBase()}/api/assignments?${q}`, { method: "GET" });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(formatApiDetail(body) || `HTTP ${res.status}`);
+          }
+          resultsById[r.id] = { schedule: body, error: null };
+        } catch (e) {
+          resultsById[r.id] = { schedule: null, error: formatFetchError(e) };
+        }
+      });
+
+      await Promise.all(tasks);
+
+      const ok = Object.values(resultsById).filter((x) => x.schedule).length;
+      const fail = Object.values(resultsById).filter((x) => x.error).length;
+      if (ok) {
+        const firstOk = withToken.find((r) => resultsById[r.id] && resultsById[r.id].schedule);
+        activeStudentId = firstOk ? firstOk.id : withToken[0].id;
+        renderTabsAndPanels();
+        document.getElementById("previewCard").classList.add("visible");
+        setStatus(
+          "fetchStatus",
+          fail ? "success" : "success",
+          `Loaded ${ok} student schedule(s).` + (fail ? ` ${fail} failed — check the red tab(s).` : "")
+        );
+      } else {
+        setStatus(
+          "fetchStatus",
+          "error",
+          "No schedules loaded. " +
+            (withToken[0] && resultsById[withToken[0].id]
+              ? resultsById[withToken[0].id].error
+              : "Check tokens and API URL.")
+        );
+      }
+      setBtnDisabled("fetchBtn", false);
+    }
+
+    document.getElementById("fetchBtn").addEventListener("click", fetchAssignments);
+
+    function renderTabsAndPanels() {
+      const tabList = document.getElementById("tabList");
+      const panels = document.getElementById("tabPanels");
+      tabList.innerHTML = "";
+      panels.innerHTML = "";
+
+      const ids = roster.filter((r) => resultsById[r.id]).map((r) => r.id);
+      if (!ids.length) return;
+
+      if (!activeStudentId || !ids.includes(activeStudentId)) activeStudentId = ids[0];
+
+      ids.forEach((sid) => {
+        const res = resultsById[sid];
+        const count = res.schedule ? res.schedule.total_assignments : 0;
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.setAttribute("role", "tab");
+        tab.id = "tab-" + sid;
+        tab.setAttribute("aria-controls", "panel-" + sid);
+        tab.setAttribute("aria-selected", sid === activeStudentId ? "true" : "false");
+        if (res.error) tab.classList.add("tab-err");
+        tab.innerHTML =
+          escHtml(tabTitleFor(sid)) +
+          '<span class="badge">' +
+          (res.error ? "!" : count) +
+          "</span>";
+        tab.addEventListener("click", () => {
+          activeStudentId = sid;
+          syncTabSelection();
+        });
+        tabList.appendChild(tab);
+
+        const panel = document.createElement("div");
+        panel.className = "tab-panel" + (sid === activeStudentId ? " active" : "");
+        panel.id = "panel-" + sid;
+        panel.setAttribute("role", "tabpanel");
+        panel.setAttribute("aria-labelledby", "tab-" + sid);
+
+        if (res.error) {
+          panel.innerHTML = '<div class="panel-error">' + escHtml(res.error) + "</div>";
+        } else {
+          const inner = document.createElement("div");
+          inner.className = "preview-inner";
+          panel.appendChild(inner);
+          renderPreviewInto(inner, res.schedule);
+
+          const map = loadDocMap();
+          const hasDoc = !!map[sid];
+          const docLine = document.createElement("div");
+          docLine.className = "panel-actions";
+          docLine.innerHTML = `
+            <button type="button" class="btn-success btn-gen" data-sid="${sid}">
+              ${hasDoc ? "Update Google Doc" : "Create Google Doc"}
+            </button>
+            <button type="button" class="btn-ghost btn-forget" data-sid="${sid}">Forget saved Doc for this student</button>
+          `;
+          panel.appendChild(docLine);
+
+          const stGen = document.createElement("p");
+          stGen.className = "status";
+          stGen.id = "gen-status-" + sid;
+          panel.appendChild(stGen);
+
+          const strip = document.createElement("div");
+          strip.className = "doc-strip";
+          strip.id = "doc-strip-" + sid;
+          strip.innerHTML =
+            '<span aria-hidden="true">📄</span><a href="#" target="_blank" rel="noopener noreferrer" class="doc-link">Open Google Doc →</a>';
+          panel.appendChild(strip);
+
+          docLine.querySelector(".btn-gen").addEventListener("click", () => generateDoc(sid));
+          docLine.querySelector(".btn-forget").addEventListener("click", () => {
+            const m = loadDocMap();
+            delete m[sid];
+            saveDocMap(m);
+            strip.classList.remove("visible");
+            setStatus("gen-status-" + sid, "success", "Next export creates a new Doc for this student.");
+            docLine.querySelector(".btn-gen").textContent = "Create Google Doc";
+          });
+        }
+
+        panels.appendChild(panel);
+      });
+
+      syncTabSelection();
+    }
+
+    function syncTabSelection() {
+      const ids = roster.filter((r) => resultsById[r.id]).map((r) => r.id);
+      ids.forEach((sid) => {
+        const tab = document.getElementById("tab-" + sid);
+        const panel = document.getElementById("panel-" + sid);
+        if (!tab || !panel) return;
+        const on = sid === activeStudentId;
+        tab.setAttribute("aria-selected", on ? "true" : "false");
+        panel.classList.toggle("active", on);
+      });
+    }
+
+    function renderPreviewInto(container, data) {
+      container.innerHTML = "";
+      const weeks = data.weeks || {};
+      const weekKeys = Object.keys(weeks).sort();
+
+      if (!weekKeys.length) {
+        container.innerHTML = '<p class="empty-week">No upcoming assignments in this range.</p>';
+        return;
+      }
+
+      weekKeys.forEach((weekKey) => {
+        const weekData = weeks[weekKey];
+        const block = document.createElement("div");
+        block.className = "week-block";
+        const heading = document.createElement("div");
+        heading.className = "week-label";
+        heading.textContent = "Week of " + weekData.week_label;
+        block.appendChild(heading);
+
+        const table = document.createElement("table");
+        const tbodyId = "tb-" + weekKey.replace(/[^a-z0-9]/gi, "") + "-" + hashString(weekKey);
+        table.innerHTML =
+          "<thead><tr><th>Day</th><th>Assignment</th><th>Course</th><th>Due</th><th>Priority</th></tr></thead>";
+        const tbody = document.createElement("tbody");
+        tbody.id = tbodyId;
+        table.appendChild(tbody);
+        block.appendChild(table);
+        container.appendChild(block);
+
+        const days = weekData.days || [];
+        const courseColorMap = buildCourseColorMap(days);
+        let hasRows = false;
+
+        days.forEach((dayObj) => {
+          const assignments = dayObj.assignments || [];
+          if (!assignments.length) return;
+          hasRows = true;
+          const dayTr = document.createElement("tr");
+          dayTr.className = "day-row";
+          dayTr.innerHTML = "<td colspan=\"5\">" + escHtml(dayObj.day) + "</td>";
+          tbody.appendChild(dayTr);
+
+          assignments.forEach((a) => {
+            const tr = document.createElement("tr");
+            tr.className = "data-row";
+            const bg = courseColorMap[a.course] || "#1e293b";
+            const priBg =
+              PRIORITY_BG[a.priority] ||
+              PRIORITY_BG[(a.priority || "").trim()] ||
+              "#475569";
+            const priorityClass =
+              "priority-" + (a.priority || "Upcoming").replace(/\s+/g, "-");
+            const assignmentCell = a.url
+              ? "<a class=\"assignment-link\" href=\"" +
+                escHtml(a.url) +
+                "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
+                escHtml(a.assignment) +
+                "</a>"
+              : escHtml(a.assignment);
+            tr.innerHTML =
+              "<td style=\"background-color:" +
+              bg +
+              ";color:#f8fafc;\"></td>" +
+              "<td style=\"background-color:" +
+              bg +
+              ";color:#f8fafc;\">" +
+              assignmentCell +
+              "</td>" +
+              "<td style=\"background-color:" +
+              bg +
+              ";color:#f8fafc;font-weight:600;\">" +
+              escHtml(a.course) +
+              "</td>" +
+              "<td style=\"background-color:" +
+              bg +
+              ";color:#f8fafc;\">" +
+              escHtml(a.due_time) +
+              "</td>" +
+              "<td style=\"background-color:" +
+              priBg +
+              ";color:#fff;\"><span class=\"priority-badge " +
+              priorityClass +
+              "\">" +
+              escHtml(a.priority) +
+              "</span></td>";
+            tbody.appendChild(tr);
+          });
+        });
+
+        if (!hasRows) {
+          const emptyTr = document.createElement("tr");
+          emptyTr.innerHTML = "<td colspan=\"5\" class=\"empty-week\">No assignments this week.</td>";
+          tbody.appendChild(emptyTr);
+        }
+      });
+    }
+
+    async function generateDoc(studentId) {
+      const res = resultsById[studentId];
+      if (!res || !res.schedule) {
+        setStatus("gen-status-" + studentId, "error", "No loaded schedule for this student.");
+        return;
+      }
+      if (isStaticHost() && !apiBase()) {
+        setStatus("gen-status-" + studentId, "error", "Set AutoPlanner API URL first.");
+        return;
+      }
+
+      const map = loadDocMap();
+      const hasSaved = !!map[studentId];
+      setStatus(
+        "gen-status-" + studentId,
+        "loading",
+        hasSaved ? "Updating Doc (~10–20s on cold start)…" : "Creating Doc (~10–20s)…"
+      );
+      const btn = document.querySelector(".btn-gen[data-sid=\"" + studentId + "\"]");
+      if (btn) btn.disabled = true;
+      document.getElementById("doc-strip-" + studentId).classList.remove("visible");
+
+      try {
+        const payload = { ...res.schedule };
+        if (map[studentId]) payload.documentId = map[studentId];
+
+        const r = await fetch(apiBase() + "/api/generate-doc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatApiDetail(body) || "HTTP " + r.status);
+
+        if (body.documentId) {
+          map[studentId] = body.documentId;
+          saveDocMap(map);
+        }
+        const strip = document.getElementById("doc-strip-" + studentId);
+        strip.querySelector(".doc-link").href = body.docUrl || "#";
+        strip.classList.add("visible");
+        if (btn) btn.textContent = "Update Google Doc";
+        setStatus(
+          "gen-status-" + studentId,
+          "success",
+          hasSaved ? "Doc updated — check Document tabs under CLC Planner." : "Doc created."
+        );
+      } catch (e) {
+        setStatus("gen-status-" + studentId, "error", formatFetchError(e));
+      } finally {
+        const b2 = document.querySelector(".btn-gen[data-sid=\"" + studentId + "\"]");
+        if (b2) b2.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
