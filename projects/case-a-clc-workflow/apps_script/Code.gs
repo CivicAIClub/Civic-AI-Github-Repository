@@ -86,6 +86,68 @@ var COL_WIDTHS = [55, 175, 100, 65, 73];
 
 var BATCH_CHUNK = 45;
 
+/** Brief pause between chunked write RPCs to stay under per-minute write quota. */
+var DOCS_CHUNK_GAP_MS = 450;
+
+function sleepDocsChunkGap() {
+  Utilities.sleep(DOCS_CHUNK_GAP_MS);
+}
+
+function docsApiIsQuotaError(err) {
+  var s = String(err);
+  return (
+    s.indexOf('Quota exceeded') !== -1 ||
+    s.indexOf('429') !== -1 ||
+    s.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
+    s.indexOf('rateLimitExceeded') !== -1 ||
+    s.indexOf('userRateLimitExceeded') !== -1
+  );
+}
+
+/** Docs.Documents.get with retries when Google returns quota / rate limit errors. */
+function docsGet(docId, opts) {
+  var options = opts || { includeTabsContent: true };
+  var lastErr;
+  for (var attempt = 0; attempt < 7; attempt++) {
+    try {
+      return Docs.Documents.get(docId, options);
+    } catch (e) {
+      lastErr = e;
+      if (docsApiIsQuotaError(e) && attempt < 6) {
+        Utilities.sleep(2000 * (attempt + 1));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Single batchUpdate (≤50 requests per Google Docs API limit).
+ * @returns {*} API reply (e.g. for addDocumentTab replies)
+ */
+function docsBatchUpdate(docId, requests) {
+  if (!requests || !requests.length) return null;
+  if (requests.length > 50) {
+    throw new Error('docsBatchUpdate: chunk > 50 requests');
+  }
+  var lastErr;
+  for (var attempt = 0; attempt < 7; attempt++) {
+    try {
+      return Docs.Documents.batchUpdate({ requests: requests }, docId);
+    } catch (e) {
+      lastErr = e;
+      if (docsApiIsQuotaError(e) && attempt < 6) {
+        Utilities.sleep(2500 * (attempt + 1));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
@@ -136,7 +198,7 @@ function upsertPlannerDocument(data) {
     var weekData = weeks[weekKey];
     var tabTitle = buildWeekTabTitle(weekKey, weekData.week_label);
 
-    var resource = Docs.Documents.get(docId, { includeTabsContent: true });
+    var resource = docsGet(docId);
     var parentJson = findTabJsonById(resource, parentTabId);
     var existingWeekTabId =
       parentJson && findChildTabIdByTitle(parentJson, tabTitle);
@@ -154,6 +216,7 @@ function upsertPlannerDocument(data) {
     }
 
     fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekData);
+    sleepDocsChunkGap();
   });
 
   return { docUrl: DocumentApp.openById(docId).getUrl(), documentId: docId };
@@ -179,7 +242,7 @@ function countAssignmentsInWeek(days) {
 
 /** Rename default root tab on first create; otherwise locate CLC Planner or first root tab. */
 function prepareParentTab(docId, isNew) {
-  var resource = Docs.Documents.get(docId, { includeTabsContent: true });
+  var resource = docsGet(docId);
   var tabs = resource.tabs || [];
   if (!tabs.length) {
     throw new Error('Document has no tabs (unexpected for this account).');
@@ -187,19 +250,14 @@ function prepareParentTab(docId, isNew) {
 
   if (isNew) {
     var pid = tabs[0].tabProperties.tabId;
-    Docs.Documents.batchUpdate(
+    docsBatchUpdate(docId, [
       {
-        requests: [
-          {
-            updateDocumentTabProperties: {
-              tabProperties: { tabId: pid, title: PARENT_TAB_TITLE },
-              fields: 'title',
-            },
-          },
-        ],
+        updateDocumentTabProperties: {
+          tabProperties: { tabId: pid, title: PARENT_TAB_TITLE },
+          fields: 'title',
+        },
       },
-      docId
-    );
+    ]);
     return pid;
   }
 
@@ -208,19 +266,14 @@ function prepareParentTab(docId, isNew) {
 
   if (tabs.length === 1 && tabs[0].tabProperties) {
     var onlyId = tabs[0].tabProperties.tabId;
-    Docs.Documents.batchUpdate(
+    docsBatchUpdate(docId, [
       {
-        requests: [
-          {
-            updateDocumentTabProperties: {
-              tabProperties: { tabId: onlyId, title: PARENT_TAB_TITLE },
-              fields: 'title',
-            },
-          },
-        ],
+        updateDocumentTabProperties: {
+          tabProperties: { tabId: onlyId, title: PARENT_TAB_TITLE },
+          fields: 'title',
+        },
       },
-      docId
-    );
+    ]);
     return onlyId;
   }
 
@@ -277,22 +330,17 @@ function nextChildTabInsertIndex(parentTabJson) {
 function addWeekChildTab(docId, parentTabId, title, insertIndex) {
   var idx =
     typeof insertIndex === 'number' && insertIndex >= 0 ? insertIndex : 0;
-  var resp = Docs.Documents.batchUpdate(
+  var resp = docsBatchUpdate(docId, [
     {
-      requests: [
-        {
-          addDocumentTab: {
-            tabProperties: {
-              title: title,
-              parentTabId: parentTabId,
-              index: idx,
-            },
-          },
+      addDocumentTab: {
+        tabProperties: {
+          title: title,
+          parentTabId: parentTabId,
+          index: idx,
         },
-      ],
+      },
     },
-    docId
-  );
+  ]);
 
   var reply = resp.replies && resp.replies[0];
   var inner = reply && reply.addDocumentTab;
@@ -331,10 +379,8 @@ function optionalColorFromHex(hex) {
 function batchUpdateChunked(docId, requests) {
   if (!requests || !requests.length) return;
   for (var i = 0; i < requests.length; i += BATCH_CHUNK) {
-    Docs.Documents.batchUpdate(
-      { requests: requests.slice(i, i + BATCH_CHUNK) },
-      docId
-    );
+    if (i > 0) sleepDocsChunkGap();
+    docsBatchUpdate(docId, requests.slice(i, i + BATCH_CHUNK));
   }
 }
 
@@ -478,7 +524,7 @@ function tabBodyStillNeedsClearing(body) {
 function clearTabBodyDocsApi(docId, tabId) {
   var iterations = 0;
   while (iterations++ < 80) {
-    var doc = Docs.Documents.get(docId, { includeTabsContent: true });
+    var doc = docsGet(docId);
     var tab = findTabJsonById(doc, tabId);
     if (!tab || !tab.documentTab || !tab.documentTab.body) return true;
     var content = tab.documentTab.body.content || [];
@@ -498,71 +544,63 @@ function clearTabBodyDocsApi(docId, tabId) {
       return false;
     }
 
-    Docs.Documents.batchUpdate({ requests: [req] }, docId);
+    docsBatchUpdate(docId, [req]);
+    /* Spread writes so we do not burst past per-minute Docs write quota. */
+    Utilities.sleep(100);
   }
   throw new Error('Timed out clearing tab body — try again.');
 }
 
 /** One-time helper text on the parent tab (Docs API only). */
 function seedParentTabHomeDocsApi(docId, parentTabId) {
-  var doc = Docs.Documents.get(docId, { includeTabsContent: true });
+  var doc = docsGet(docId);
   var tab = findTabJsonById(doc, parentTabId);
   if (!tab || !tab.documentTab || !tab.documentTab.body) return;
   if (tabBodyPlainText(tab.documentTab.body).replace(/\s/g, '').length > 0) return;
 
-  Docs.Documents.batchUpdate(
+  docsBatchUpdate(docId, [
     {
-      requests: [
-        {
-          insertText: {
-            text: PARENT_TAB_TITLE + '\n',
-            endOfSegmentLocation: { tabId: parentTabId },
-          },
-        },
-        {
-          insertText: {
-            text:
-              'Open nested tabs under this document tab for each week (Document tabs sidebar). ' +
-              'Re-running AutoPlanner refreshes an existing week tab or adds a new one.\n',
-            endOfSegmentLocation: { tabId: parentTabId },
-          },
-        },
-        {
-          insertText: {
-            text: '\n',
-            endOfSegmentLocation: { tabId: parentTabId },
-          },
-        },
-      ],
+      insertText: {
+        text: PARENT_TAB_TITLE + '\n',
+        endOfSegmentLocation: { tabId: parentTabId },
+      },
     },
-    docId
-  );
+    {
+      insertText: {
+        text:
+          'Open nested tabs under this document tab for each week (Document tabs sidebar). ' +
+          'Re-running AutoPlanner refreshes an existing week tab or adds a new one.\n',
+        endOfSegmentLocation: { tabId: parentTabId },
+      },
+    },
+    {
+      insertText: {
+        text: '\n',
+        endOfSegmentLocation: { tabId: parentTabId },
+      },
+    },
+  ]);
 
-  doc = Docs.Documents.get(docId, { includeTabsContent: true });
+  doc = docsGet(docId);
   tab = findTabJsonById(doc, parentTabId);
   var bodyContent = tab.documentTab.body.content || [];
   var p0 = bodyContent[0];
   var h1bounds = p0 && p0.paragraph ? structuralContentBounds(p0) : null;
   if (h1bounds) {
-    Docs.Documents.batchUpdate(
+    docsBatchUpdate(docId, [
       {
-        requests: [
-          {
-            updateParagraphStyle: {
-              range: {
-                segmentId: '',
-                tabId: parentTabId,
-                startIndex: h1bounds.start,
-                endIndex: h1bounds.end,
-              },
-              paragraphStyle: { namedStyleType: 'HEADING_1' },
-              fields: 'namedStyleType',
-            },
+        updateParagraphStyle: {
+          range: {
+            segmentId: '',
+            tabId: parentTabId,
+            startIndex: h1bounds.start,
+            endIndex: h1bounds.end,
           },
-        ],
+          paragraphStyle: { namedStyleType: 'HEADING_1' },
+          fields: 'namedStyleType',
+        },
       },
-      docId
-    );
+    ]);
   }
 }
 
@@ -618,23 +656,49 @@ function getCellTextRange(cell) {
   return { startIndex: minS, endIndex: maxE };
 }
 
+/**
+ * True if the week tab already has a table or substantial body — replace the tab
+ * instead of clearing paragraph-by-paragraph (avoids hundreds of Docs writes / quota).
+ */
+function tabBodyHasHeavyContent(tabJson) {
+  if (!tabJson || !tabJson.documentTab || !tabJson.documentTab.body) return false;
+  var content = tabJson.documentTab.body.content || [];
+  for (var i = 0; i < content.length; i++) {
+    if (content[i].table) return true;
+  }
+  if (content.length > 3) return true;
+  var plain = tabBodyPlainText(tabJson.documentTab.body).replace(/\s/g, '');
+  return plain.length > 60;
+}
+
 function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekData) {
-  var cleared = clearTabBodyDocsApi(docId, tabId);
-  if (!cleared) {
-    Docs.Documents.batchUpdate(
-      {
-        requests: [{ deleteTab: { tabId: tabId } }],
-      },
-      docId
-    );
-    var docAfterDel = Docs.Documents.get(docId, { includeTabsContent: true });
-    var pjAfterDel = findTabJsonById(docAfterDel, parentTabId);
+  var docProbe = docsGet(docId);
+  var tabProbe = findTabJsonById(docProbe, tabId);
+  if (tabBodyHasHeavyContent(tabProbe)) {
+    docsBatchUpdate(docId, [{ deleteTab: { tabId: tabId } }]);
+    var docAfterHeavy = docsGet(docId);
+    var pjHeavy = findTabJsonById(docAfterHeavy, parentTabId);
     tabId = addWeekChildTab(
       docId,
       parentTabId,
       tabTitle,
-      nextChildTabInsertIndex(pjAfterDel)
+      nextChildTabInsertIndex(pjHeavy)
     );
+    sleepDocsChunkGap();
+  } else {
+    var cleared = clearTabBodyDocsApi(docId, tabId);
+    if (!cleared) {
+      docsBatchUpdate(docId, [{ deleteTab: { tabId: tabId } }]);
+      var docAfterDel = docsGet(docId);
+      var pjAfterDel = findTabJsonById(docAfterDel, parentTabId);
+      tabId = addWeekChildTab(
+        docId,
+        parentTabId,
+        tabTitle,
+        nextChildTabInsertIndex(pjAfterDel)
+      );
+      sleepDocsChunkGap();
+    }
   }
 
   var days = weekData.days || [];
@@ -642,33 +706,28 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
   var subtitle =
     'Assignments in this week: ' + countAssignmentsInWeek(days);
 
-  Docs.Documents.batchUpdate(
+  docsBatchUpdate(docId, [
     {
-      requests: [
-        {
-          insertText: {
-            text: weekHeading + '\n',
-            endOfSegmentLocation: { tabId: tabId },
-          },
-        },
-        {
-          insertText: {
-            text: subtitle + '\n',
-            endOfSegmentLocation: { tabId: tabId },
-          },
-        },
-        {
-          insertText: {
-            text: '\n',
-            endOfSegmentLocation: { tabId: tabId },
-          },
-        },
-      ],
+      insertText: {
+        text: weekHeading + '\n',
+        endOfSegmentLocation: { tabId: tabId },
+      },
     },
-    docId
-  );
+    {
+      insertText: {
+        text: subtitle + '\n',
+        endOfSegmentLocation: { tabId: tabId },
+      },
+    },
+    {
+      insertText: {
+        text: '\n',
+        endOfSegmentLocation: { tabId: tabId },
+      },
+    },
+  ]);
 
-  var doc = Docs.Documents.get(docId, { includeTabsContent: true });
+  var doc = docsGet(docId);
   var tab = findTabJsonById(doc, tabId);
   var paras = tab.documentTab.body.content || [];
   var pTitle = paras[0];
@@ -705,7 +764,7 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
     });
   }
   if (styleReqs.length) {
-    Docs.Documents.batchUpdate({ requests: styleReqs }, docId);
+    docsBatchUpdate(docId, styleReqs);
   }
 
   var numRows = countPlannerTableRows(days);
@@ -713,22 +772,17 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
     return;
   }
 
-  Docs.Documents.batchUpdate(
+  docsBatchUpdate(docId, [
     {
-      requests: [
-        {
-          insertTable: {
-            rows: numRows,
-            columns: TABLE_HEADERS.length,
-            endOfSegmentLocation: { tabId: tabId },
-          },
-        },
-      ],
+      insertTable: {
+        rows: numRows,
+        columns: TABLE_HEADERS.length,
+        endOfSegmentLocation: { tabId: tabId },
+      },
     },
-    docId
-  );
+  ]);
 
-  doc = Docs.Documents.get(docId, { includeTabsContent: true });
+  doc = docsGet(docId);
   var tblWrap = findLastTableStructInTab(doc, tabId);
   if (!tblWrap || !tblWrap.table || !tblWrap.table.tableRows) {
     throw new Error('insertTable failed — table not found after insert.');
@@ -789,7 +843,7 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
     });
   batchUpdateChunked(docId, insertReqs);
 
-  doc = Docs.Documents.get(docId, { includeTabsContent: true });
+  doc = docsGet(docId);
   tblWrap = findLastTableStructInTab(doc, tabId);
   tableJson = tblWrap.table;
 
