@@ -1,5 +1,9 @@
 name: Deploy Case B to GitHub Pages
 
+# Publishes the Music Studio Vite app to gh-pages/case-b so each
+# case in this monorepo gets its own independent Pages URL:
+#   https://civicaiclub.github.io/Civic-AI-Github-Repository/case-b/
+
 on:
   push:
     branches: [main]
@@ -9,17 +13,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# One Pages deploy at a time, but don't cancel in-flight deploys.
+# Shared with deploy-case-a-pages.yml so the two never write to gh-pages
+# at the same moment.
 concurrency:
-  group: pages
+  group: gh-pages-publish
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,22 +40,23 @@ jobs:
 
       - run: npm run build
 
-      # GitHub Pages serves static files only — without this, deep links like
-      # /students refresh into a 404. Routing the 404 page through the same
-      # SPA shell lets React Router pick up the URL on the client.
+      # GitHub Pages serves only `/404.html` from the root of the publishing
+      # source; deep links inside this case-b sub-app would otherwise refresh
+      # into a 404. Mirroring index.html here keeps in-app navigation working
+      # for direct entry into the app's own shell.
       - name: Add SPA fallback
         run: cp dist/index.html dist/404.html
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: projects/case-b-music-studio/dist
+      - name: Ensure .nojekyll
+        run: touch dist/.nojekyll
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to gh-pages /case-b
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: projects/case-b-music-studio/dist
+          destination_dir: case-b
+          keep_files: true
+          enable_jekyll: false
+          commit_message: "deploy case-b: ${{ github.sha }}"

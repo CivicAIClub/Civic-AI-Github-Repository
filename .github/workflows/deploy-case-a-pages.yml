@@ -1,5 +1,9 @@
 name: Deploy Case A (AutoPlanner) to GitHub Pages
 
+# Publishes the AutoPlanner static frontend to gh-pages/case-a so each
+# case in this monorepo gets its own independent Pages URL:
+#   https://civicaiclub.github.io/Civic-AI-Github-Repository/case-a/
+
 on:
   push:
     branches: [main]
@@ -9,38 +13,37 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# Shares the repo’s single GitHub Pages site with other deploy workflows.
-# If Case B (or another) also deploys to `github-pages`, only the latest run wins;
-# coordinate in team settings or use workflow_dispatch when you need this UI live.
+# Serialise all sub-publishers writing to gh-pages so two case workflows
+# never push at the same moment and clobber each other.
 concurrency:
-  group: pages
+  group: gh-pages-publish
   cancel-in-progress: false
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare static site (SPA fallback for deep links)
+      - name: Stage Case A static site
         run: |
-          FRONT=projects/case-a-clc-workflow/frontend
-          cp "$FRONT/index.html" "$FRONT/404.html"
+          set -eu
+          rm -rf _publish_case_a
+          mkdir -p _publish_case_a
+          cp -R projects/case-a-clc-workflow/frontend/. _publish_case_a/
+          # SPA fallback for refreshes; harmless for this single-page app.
+          cp _publish_case_a/index.html _publish_case_a/404.html
+          : > _publish_case_a/.nojekyll
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Publish to gh-pages /case-a
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: projects/case-a-clc-workflow/frontend
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./_publish_case_a
+          destination_dir: case-a
+          keep_files: true
+          enable_jekyll: false
+          commit_message: "deploy case-a: ${{ github.sha }}"
