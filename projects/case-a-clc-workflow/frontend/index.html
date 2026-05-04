@@ -570,6 +570,49 @@
       localStorage.setItem(LS_DOC_MAP, JSON.stringify(map));
     }
 
+    /** Stable localStorage key: Canvas user id from profile (preferred) or UI row id. */
+    function docStorageKey(schedule, rosterRowId) {
+      const cid =
+        schedule &&
+        schedule.canvas_user_id !== undefined &&
+        schedule.canvas_user_id !== null &&
+        String(schedule.canvas_user_id).trim() !== ""
+          ? String(schedule.canvas_user_id).trim()
+          : "";
+      return cid ? "c:" + cid : "row:" + rosterRowId;
+    }
+
+    function googleDocEditUrl(documentId) {
+      return "https://docs.google.com/document/d/" + String(documentId).trim() + "/edit";
+    }
+
+    /** Resolve saved Doc id (tries Canvas-key then legacy row-key). */
+    function getStoredDocId(schedule, rosterRowId) {
+      const m = loadDocMap();
+      const k = docStorageKey(schedule, rosterRowId);
+      if (m[k]) return m[k];
+      if (m[rosterRowId]) return m[rosterRowId];
+      return null;
+    }
+
+    /** After fetch, move Doc ids from old row-only keys to Canvas-backed keys. */
+    function syncDocMapKeysAfterFetch(studentsWithToken) {
+      const m = loadDocMap();
+      let dirty = false;
+      (studentsWithToken || []).forEach(function (r) {
+        const entry = resultsById[r.id];
+        if (!entry || !entry.schedule) return;
+        const newKey = docStorageKey(entry.schedule, r.id);
+        if (m[newKey]) return;
+        if (m[r.id]) {
+          m[newKey] = m[r.id];
+          delete m[r.id];
+          dirty = true;
+        }
+      });
+      if (dirty) saveDocMap(m);
+    }
+
     function loadRosterFromStorage() {
       try {
         const raw = localStorage.getItem(LS_ROSTER);
@@ -686,9 +729,7 @@
     function removeStudent(id) {
       roster = roster.filter((r) => r.id !== id);
       if (!roster.length) roster.push({ id: uuid(), label: "", token: "" });
-      const map = loadDocMap();
-      delete map[id];
-      saveDocMap(map);
+      /* Keep Google Doc ids keyed by Canvas user — removing a row must not orphan the Doc. */
       persistRoster();
       delete resultsById[id];
       if (activeStudentId === id) activeStudentId = null;
@@ -830,6 +871,8 @@
 
       await Promise.all(tasks);
 
+      syncDocMapKeysAfterFetch(withToken);
+
       const ok = Object.values(resultsById).filter((x) => x.schedule).length;
       const fail = Object.values(resultsById).filter((x) => x.error).length;
       if (ok) {
@@ -903,15 +946,14 @@
           panel.appendChild(inner);
           renderPreviewInto(inner, res.schedule);
 
-          const map = loadDocMap();
-          const hasDoc = !!map[sid];
+          const storedId = getStoredDocId(res.schedule, sid);
+          const hasDoc = !!storedId;
           const docLine = document.createElement("div");
           docLine.className = "panel-actions";
           docLine.innerHTML = `
             <button type="button" class="btn-success btn-gen" data-sid="${sid}">
               ${hasDoc ? "Update Google Doc" : "Create Google Doc"}
             </button>
-            <button type="button" class="btn-ghost btn-forget" data-sid="${sid}">Forget saved Doc for this student</button>
           `;
           panel.appendChild(docLine);
 
@@ -924,18 +966,15 @@
           strip.className = "doc-strip";
           strip.id = "doc-strip-" + sid;
           strip.innerHTML =
-            '<span aria-hidden="true">📄</span><a href="#" target="_blank" rel="noopener noreferrer" class="doc-link">Open Google Doc →</a>';
+            '<span aria-hidden="true">📄</span><a href="#" target="_blank" rel="noopener noreferrer" class="doc-link">Open this student’s CLC Doc →</a>';
           panel.appendChild(strip);
 
+          if (storedId) {
+            strip.querySelector(".doc-link").href = googleDocEditUrl(storedId);
+            strip.classList.add("visible");
+          }
+
           docLine.querySelector(".btn-gen").addEventListener("click", () => generateDoc(sid));
-          docLine.querySelector(".btn-forget").addEventListener("click", () => {
-            const m = loadDocMap();
-            delete m[sid];
-            saveDocMap(m);
-            strip.classList.remove("visible");
-            setStatus("gen-status-" + sid, "success", "Next export creates a new Doc for this student.");
-            docLine.querySelector(".btn-gen").textContent = "Create Google Doc";
-          });
         }
 
         panels.appendChild(panel);
@@ -1065,7 +1104,10 @@
       }
 
       const map = loadDocMap();
-      const hasSaved = !!map[studentId];
+      const sched = res.schedule;
+      const storageKey = docStorageKey(sched, studentId);
+      const existingId = getStoredDocId(sched, studentId);
+      const hasSaved = !!existingId;
       setStatus(
         "gen-status-" + studentId,
         "loading",
@@ -1073,11 +1115,10 @@
       );
       const btn = document.querySelector(".btn-gen[data-sid=\"" + studentId + "\"]");
       if (btn) btn.disabled = true;
-      document.getElementById("doc-strip-" + studentId).classList.remove("visible");
 
       try {
         const payload = { ...res.schedule };
-        if (map[studentId]) payload.documentId = map[studentId];
+        if (existingId) payload.documentId = existingId;
 
         const r = await fetch(apiBase() + "/api/generate-doc", {
           method: "POST",
@@ -1088,11 +1129,13 @@
         if (!r.ok) throw new Error(formatApiDetail(body) || "HTTP " + r.status);
 
         if (body.documentId) {
-          map[studentId] = body.documentId;
+          map[storageKey] = body.documentId;
+          if (storageKey !== studentId && map[studentId]) delete map[studentId];
           saveDocMap(map);
         }
         const strip = document.getElementById("doc-strip-" + studentId);
-        strip.querySelector(".doc-link").href = body.docUrl || "#";
+        const link = strip.querySelector(".doc-link");
+        link.href = body.docUrl || googleDocEditUrl(body.documentId || existingId || "");
         strip.classList.add("visible");
         if (btn) btn.textContent = "Update Google Doc";
         setStatus(

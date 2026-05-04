@@ -120,6 +120,11 @@ async def get_assignments(
         (profile.get("name") or profile.get("short_name") or "Student") or "Student"
     )
     schedule["student_full_name"] = str(display_name).strip() or "Student"
+    # Stable id for the token holder — used by the frontend to reuse the same Google Doc
+    # across roster edits and browsers (per Canvas user), not the ephemeral UI row id.
+    cid = profile.get("id")
+    if cid is not None:
+        schedule["canvas_user_id"] = cid
     return schedule
 
 
