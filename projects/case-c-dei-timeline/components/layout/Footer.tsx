@@ -26,10 +26,10 @@ const footerSections = [
   {
     title: 'Information For',
     links: [
-      { href: 'https://www.pomfret.org', label: 'Students', external: true },
-      { href: 'https://www.pomfret.org', label: 'Parents', external: true },
-      { href: 'https://www.pomfret.org', label: 'Faculty & Staff', external: true },
-      { href: 'https://www.pomfret.org', label: 'Alumni', external: true },
+      { href: 'https://www.pomfret.org/student-life', label: 'Students', external: true },
+      { href: 'https://www.pomfret.org/parents', label: 'Parents', external: true },
+      { href: 'https://www.pomfret.org/about-us', label: 'Faculty & Staff', external: true },
+      { href: 'https://www.pomfret.org/alumni-and-giving', label: 'Alumni', external: true },
     ],
   },
 ];
@@ -165,7 +165,7 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} Pomfret School. All rights reserved.
           </p>
           <div className="flex flex-wrap items-center gap-4 text-xs text-warm-white/40">
-            <Link href="/ai-bias" className="hover:text-warm-white transition-colors">
+            <Link href="/accessibility" className="hover:text-warm-white transition-colors">
               Accessibility
             </Link>
             <span className="text-warm-white/20">|</span>
@@ -181,8 +181,6 @@ export default function Footer() {
             >
               Main Site
             </a>
-            <span className="text-warm-white/20">|</span>
-            <span>WCAG 2.1 AA</span>
           </div>
         </div>
       </div>

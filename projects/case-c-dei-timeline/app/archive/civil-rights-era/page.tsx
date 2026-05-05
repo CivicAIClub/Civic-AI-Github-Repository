@@ -25,7 +25,15 @@ const pages = [
       'The spelling of VOICE is not an acronym. When VOICE started in 1984, it was \'Voice.\' When the Reunion occurred in 2002, Ginny Eaton changed the lettering to \'VOICE,\' so that it would "make a voice" by being in all capital letters.',
     ],
   },
-  { num: 2, image: '/archive/magazines/civil-rights-era-p02.png', title: 'Minorities, 1961-1973', transcript: ['(Faculty reflections on integration and early student culture — page scanned in full above.)'] },
+  {
+    num: 2,
+    image: '/archive/magazines/civil-rights-era-p02.png',
+    title: 'Minorities, 1961-1973',
+    transcript: [
+      'A listing of minority students who attended Pomfret School between 1961 and 1973, with their class years. The complete roll appears on the scanned page above.',
+      'Full text transcription pending review by the DEI Office.',
+    ],
+  },
   { num: 3, image: '/archive/magazines/civil-rights-era-p03.png', title: 'Naomi Vega and the Class of \'69', transcript: ['"Naomi Vega was one of three talented, influential newcomers who joined the class of \'69 for their sixth form year under extenuating circumstances. Naomi, James Edwards, and Eloibadis Nieves were students in New York City before a teachers\' strike threatened to jeopardize their college plans, and Mr. Milnor and Admissions Director John Howland stepped in to offer them scholarships to Pomfret."', '"It was a time of major upheaval in the country as a whole, and it was a bad time at Pomfret as well."'] },
   { num: 4, image: '/archive/magazines/civil-rights-era-p04.png', title: 'Title Page: More than Four Decades of Diversity', transcript: ['Pomfret In The...', 'More than Four Decades of Diversity', 'By Elizabeth Lake', '"Every once in a while, one small step by a man can be a giant step for humankind. Sometimes that step is in the name of science, but the step John Irick \'65 took 40 years ago helped change the face of Pomfret School."'] },
   { num: 5, image: '/archive/magazines/civil-rights-era-p05.png', title: 'Civil Rights Era', transcript: ['When Irick came to Northeast Connecticut in 1964, he was not the typical Pomfret student. He was born in January 1947, in John C. Calhoun County in South Carolina to share croppers Alma and Wilbur Irick. In 1950, discouraged with the share cropping system that gave them 10 percent of the profit for 100 percent of the labor, his parents moved to Orangeburg, South Carolina.', 'Irick attended segregated schools and worked hard, taking advantage of these programs and seeking out whatever opportunity he could. Irick first became aware of Pomfret School in the 1963-1964 school year, when Matt Hobbs \'64 visited Wilkinson High School as part of a program organized by American Friends Service Community.', '"For me, Pomfret was a dream come true; it provided an opportunity for an excellent education but more importantly, a chance to demonstrate that students committed to exercising mutual respect for each other, regardless of their race, could live, study, and play together." — John Irick \'65'] },

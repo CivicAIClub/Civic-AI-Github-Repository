@@ -156,7 +156,7 @@ export default function HeadsOfSchoolPage() {
             <span className="font-normal text-cream/60">of School</span>
           </h1>
           <p className="text-lg text-cream/70 max-w-2xl font-body leading-relaxed">
-            The leaders who shaped Pomfret School across 131 years of history, sourced
+            The leaders who shaped Pomfret School across more than a century of history, sourced
             from official school archives and the September 2003 &ldquo;Mission Accomplished&rdquo;
             anniversary edition of <em>Pomfret Magazine</em>.
           </p>

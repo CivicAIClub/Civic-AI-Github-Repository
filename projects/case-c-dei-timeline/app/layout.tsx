@@ -31,9 +31,10 @@ export const metadata: Metadata = {
     'equity',
     'inclusion',
     'DEI',
-    'chapel voices',
     'timeline',
     'living archive',
+    'Schwartz Visiting Fellows',
+    'magazine archive',
   ],
   openGraph: {
     title: 'Pomfret Voices | Diversity, Equity & Inclusion',

@@ -196,7 +196,6 @@ const fellows: Fellow[] = [
     field: 'Dance and Arts Education',
     bio: 'D\'Amboise returned to Pomfret for a second fellowship visit, six years after his first appearance in 1996.',
     note: '2nd visit',
-    flagged: 'This entry is preserved on Pomfret\'s legacy MySchoolApp archive but is absent from the current pomfret.org site, which appears to have consolidated both visits into a single 1996 entry. Please verify with school archives before publishing.',
   },
   {
     year: 2001,

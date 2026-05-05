@@ -280,16 +280,69 @@ export default function AIBiasPage() {
               <h3 className="font-display text-lg text-cream mb-3">The real-world impact</h3>
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
-                  { stat: '59%', label: 'of AI-generated faces in one study had lighter skin than the prompt described' },
-                  { stat: '80%+', label: 'of training images in popular datasets originate from Western or light-skinned sources' },
-                  { stat: '3x', label: 'more likely for AI to alter features of Black and Brown faces vs. white faces' },
+                  {
+                    stat: '34.7%',
+                    label: 'accuracy gap between darker-skinned women and lighter-skinned men in commercial gender-classification systems',
+                    cite: '1',
+                  },
+                  {
+                    stat: '10–100×',
+                    label: 'higher false-match rates in face-recognition algorithms for some demographic groups vs. middle-aged white males',
+                    cite: '2',
+                  },
+                  {
+                    stat: '97%',
+                    label: "of 'judges' depicted by Stable Diffusion are men, even though 34% of US judges are women",
+                    cite: '3',
+                  },
                 ].map((item, i) => (
                   <div key={i} className="text-center p-4 bg-cream/5 rounded-xl">
-                    <div className="font-display text-2xl text-gold font-bold mb-1">{item.stat}</div>
+                    <div className="font-display text-2xl text-cream font-bold mb-1">
+                      {item.stat}
+                      <sup className="text-xs text-cream/60 ml-0.5">{item.cite}</sup>
+                    </div>
                     <p className="text-xs text-cream/70 font-body">{item.label}</p>
                   </div>
                 ))}
               </div>
+              <ol className="mt-6 pt-5 border-t border-cream/10 text-[11px] text-cream/60 font-body leading-relaxed space-y-1.5 list-decimal list-inside">
+                <li>
+                  Buolamwini, J. &amp; Gebru, T. (2018).{' '}
+                  <a
+                    href="https://proceedings.mlr.press/v81/buolamwini18a.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-cream"
+                  >
+                    Gender Shades: Intersectional Accuracy Disparities in Commercial Gender Classification
+                  </a>
+                  . Proceedings of Machine Learning Research, MIT Media Lab.
+                </li>
+                <li>
+                  Grother, P., Ngan, M. &amp; Hanaoka, K. (2019).{' '}
+                  <a
+                    href="https://nvlpubs.nist.gov/nistpubs/ir/2019/NIST.IR.8280.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-cream"
+                  >
+                    Face Recognition Vendor Test (FRVT) Part 3: Demographic Effects
+                  </a>
+                  . NIST Interagency Report 8280.
+                </li>
+                <li>
+                  Nicoletti, L. &amp; Bass, D. (2023).{' '}
+                  <a
+                    href="https://www.bloomberg.com/graphics/2023-generative-ai-bias/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-cream"
+                  >
+                    Humans Are Biased. Generative AI Is Even Worse
+                  </a>
+                  . Bloomberg.
+                </li>
+              </ol>
             </div>
           </section>
         </ScrollReveal>

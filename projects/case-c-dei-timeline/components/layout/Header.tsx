@@ -9,10 +9,6 @@ const navItems: { href: string; label: string; children?: { href: string; label:
   {
     href: '/timeline',
     label: 'Timeline',
-    children: [
-      { href: '/timeline', label: 'Full DEI Timeline' },
-      { href: '/humans-of-pomfret/heads-of-school', label: 'Heads of School' },
-    ],
   },
   {
     href: '/humans-of-pomfret',
@@ -39,7 +35,7 @@ const navItems: { href: string; label: string; children?: { href: string; label:
 const utilityLinks = [
   { href: 'https://www.pomfret.org', label: 'Pomfret.org', external: true },
   { href: 'https://www.pomfret.org/admissions', label: 'Admissions', external: true },
-  { href: 'mailto:dei@pomfretschool.org', label: 'Contact DEI' },
+  { href: 'mailto:dei@pomfret.org', label: 'Contact DEI' },
 ];
 
 export default function Header() {

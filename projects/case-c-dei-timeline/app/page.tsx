@@ -1,8 +1,9 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useRef } from 'react';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 import SectionHeading from '@/components/layout/SectionHeading';
 
@@ -14,7 +15,7 @@ const heroSlides = [
     id: 0,
     headline: 'A Living Archive of',
     accent: 'Every Voice',
-    subtitle: 'Exploring 130 years of diversity, equity, and inclusion at Pomfret School.',
+    subtitle: 'Exploring more than a century of diversity, equity, and inclusion at Pomfret School.',
     gradient: 'from-pomfret-navy via-navy to-maroon-dark',
   },
   {
@@ -222,7 +223,7 @@ function SignatureExhibits() {
       href: '/timeline',
       category: 'Interactive',
       title: 'The DEI Timeline',
-      meta: '130 Years · 31 Events',
+      meta: '132 Years · 41 Events',
       description: 'From founding in 1894 to today — explore the milestones that shaped diversity at Pomfret.',
     },
     {
@@ -318,15 +319,65 @@ function SignatureExhibits() {
 // =================================================================
 function RemarkableVoices() {
   const voices = [
-    { name: 'John Irick', year: '\u201965', quote: 'First African American graduate', bg: 'bg-navy' },
-    { name: 'Naomi Vega', year: '\u201969', quote: 'First female graduate', bg: 'bg-maroon' },
-    { name: 'Michael Gary', year: '\u201982', quote: 'First Director of Multicultural Affairs', bg: 'bg-navy-light' },
-    { name: 'Heather Willis Daly', year: '2024', quote: 'First female Head of School', bg: 'bg-maroon-dark' },
-    { name: 'Dr. Coretta McCarter', year: 'Today', quote: 'Dean of DEI', bg: 'bg-navy-dark' },
-    { name: 'VOICE', year: '1984', quote: 'Multicultural student leadership', bg: 'bg-maroon-light' },
+    {
+      name: 'John Irick',
+      year: "'65",
+      quote: 'First African American graduate',
+      href: '/humans-of-pomfret/john-irick',
+      image: '/archive/portraits/john-irick-1965.jpg',
+      bg: 'bg-navy',
+    },
+    {
+      name: 'Naomi Vega',
+      year: "'69",
+      quote: 'First female graduate',
+      href: '/humans-of-pomfret/naomi-vega',
+      image: '/archive/portraits/naomi-vega.jpg',
+      bg: 'bg-maroon',
+    },
+    {
+      name: 'Michael Gary',
+      year: "'82",
+      quote: 'First Director of Multicultural Affairs',
+      href: '/timeline',
+      image: null,
+      bg: 'bg-navy/80',
+    },
+    {
+      name: 'Heather Willis Daly',
+      year: '2024',
+      quote: 'First female Head of School',
+      href: '/humans-of-pomfret/heads-of-school',
+      image: '/heads/heather-willis-daly.jpg',
+      bg: 'bg-maroon-dark',
+    },
+    {
+      name: 'Dr. Coretta McCarter',
+      year: 'Today',
+      quote: 'Dean of DEI',
+      href: '/timeline',
+      image: null,
+      bg: 'bg-navy',
+    },
+    {
+      name: 'VOICE',
+      year: '1984',
+      quote: 'Multicultural student leadership',
+      href: '/timeline',
+      image: null,
+      bg: 'bg-maroon',
+    },
   ];
 
-  const [activeIdx, setActiveIdx] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (dir: 'prev' | 'next') => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const card = el.querySelector('[data-voice-card]') as HTMLElement | null;
+    const step = card ? card.offsetWidth + 16 : 240;
+    el.scrollBy({ left: dir === 'next' ? step : -step, behavior: 'smooth' });
+  };
 
   return (
     <section className="py-24 lg:py-32 bg-warm-white">
@@ -334,20 +385,20 @@ function RemarkableVoices() {
         <ScrollReveal>
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-16 gap-6">
             <SectionHeading bold="Remarkable" rest="Voices" />
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 lg:hidden">
               <button
-                onClick={() => setActiveIdx(Math.max(0, activeIdx - 1))}
+                onClick={() => scroll('prev')}
                 className="w-12 h-12 rounded-full border border-navy/20 text-navy/60 hover:text-navy hover:border-navy transition-all flex items-center justify-center"
-                aria-label="Previous voice"
+                aria-label="Scroll voices left"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
               <button
-                onClick={() => setActiveIdx(Math.min(voices.length - 1, activeIdx + 1))}
+                onClick={() => scroll('next')}
                 className="w-12 h-12 rounded-full border border-navy/20 text-navy/60 hover:text-navy hover:border-navy transition-all flex items-center justify-center"
-                aria-label="Next voice"
+                aria-label="Scroll voices right"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -357,19 +408,48 @@ function RemarkableVoices() {
           </div>
         </ScrollReveal>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div
+          ref={scrollerRef}
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-6 lg:overflow-visible"
+        >
           {voices.map((voice, i) => (
-            <ScrollReveal key={voice.name} delay={i * 0.08}>
-              <div className="group cursor-pointer">
-                <div className={`aspect-[3/4] ${voice.bg} rounded-sm overflow-hidden relative mb-4 hover:scale-[1.02] transition-transform`}>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <div className="text-xs text-warm-white/70 font-body">{voice.year}</div>
+            <ScrollReveal key={voice.name} delay={i * 0.08} className="snap-start shrink-0 w-[60%] sm:w-[40%] lg:w-auto">
+              <Link
+                href={voice.href}
+                data-voice-card
+                className="group block"
+              >
+                <div className={`aspect-[3/4] ${voice.bg} rounded-sm overflow-hidden relative mb-4 group-hover:scale-[1.02] transition-transform`}>
+                  {voice.image ? (
+                    <Image
+                      src={voice.image}
+                      alt={`Portrait of ${voice.name}`}
+                      fill
+                      sizes="(max-width: 640px) 60vw, (max-width: 1024px) 40vw, 16vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="font-display text-3xl text-warm-white/40">
+                        {voice.name
+                          .replace(/^Dr\.\s/, '')
+                          .split(' ')
+                          .slice(0, 2)
+                          .map((n) => n[0])
+                          .join('')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="text-xs text-warm-white/80 font-body">{voice.year}</div>
                   </div>
                 </div>
-                <h4 className="font-display text-lg text-navy leading-tight mb-1">{voice.name}</h4>
+                <h4 className="font-display text-lg text-navy leading-tight mb-1 group-hover:text-maroon transition-colors">
+                  {voice.name}
+                </h4>
                 <p className="text-xs text-slate font-body leading-snug">{voice.quote}</p>
-              </div>
+              </Link>
             </ScrollReveal>
           ))}
         </div>
@@ -384,25 +464,31 @@ function RemarkableVoices() {
 function LatestStories() {
   const stories = [
     {
+      href: '/timeline',
       category: 'Milestone',
       author: 'The Archive',
       date: 'January 21, 2026',
       title: 'A Day On for Justice: MLK Programming Brings Community Together',
       excerpt: 'Dr. Coretta McCarter led a full day of student workshops on civil rights, policy, and social justice.',
+      image: '/archive/portraits/trailblazers-banner.jpg',
     },
     {
+      href: '/humans-of-pomfret/heads-of-school',
       category: 'Leadership',
       author: 'Pomfret School',
       date: 'October 1, 2024',
       title: 'First Female Head of School Appointed in 130-Year History',
       excerpt: 'Heather Willis Daly becomes the 13th Head of School — and the first woman to hold the role.',
+      image: '/heads/heather-willis-daly.jpg',
     },
     {
+      href: '/timeline',
       category: 'Student Voices',
       author: 'The Archive',
       date: 'June 1, 2020',
       title: '@BlackAtPomfret: When Students Told Their Stories',
-      excerpt: 'How the racial reckoning of 2020 reshaped Pomfret\'s approach to accountability and inclusion.',
+      excerpt: "How the racial reckoning of 2020 reshaped Pomfret's approach to accountability and inclusion.",
+      image: '/archive/portraits/original-six-banner.jpg',
     },
   ];
 
@@ -424,24 +510,31 @@ function LatestStories() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
           {stories.map((story, i) => (
             <ScrollReveal key={i} delay={i * 0.1}>
-              <article className="group cursor-pointer">
-                <div className="aspect-[16/10] bg-gradient-to-br from-navy/80 to-navy-dark rounded-sm mb-6 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                </div>
-                <div className="flex items-center gap-3 text-xs font-body text-slate/70 uppercase tracking-wider mb-3">
-                  <span className="text-maroon font-semibold">{story.category}</span>
-                  <span>&middot;</span>
-                  <span>{story.author}</span>
-                  <span>&middot;</span>
-                  <span>{story.date}</span>
-                </div>
-                <h3 className="font-display text-2xl text-navy mb-3 group-hover:text-maroon transition-colors leading-tight">
-                  {story.title}
-                </h3>
-                <p className="text-slate font-body leading-relaxed">
-                  {story.excerpt}
-                </p>
-              </article>
+              <Link href={story.href} className="group block">
+                <article>
+                  <div className="aspect-[16/10] rounded-sm mb-6 relative overflow-hidden bg-navy/10">
+                    <Image
+                      src={story.image}
+                      alt={story.title}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 33vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-body text-slate/70 uppercase tracking-wider mb-3">
+                    <span className="text-maroon font-semibold">{story.category}</span>
+                    <span>&middot;</span>
+                    <span>{story.author}</span>
+                    <span>&middot;</span>
+                    <span>{story.date}</span>
+                  </div>
+                  <h3 className="font-display text-2xl text-navy mb-3 group-hover:text-maroon transition-colors leading-tight">
+                    {story.title}
+                  </h3>
+                  <p className="text-slate font-body leading-relaxed">{story.excerpt}</p>
+                </article>
+              </Link>
             </ScrollReveal>
           ))}
         </div>
@@ -454,16 +547,73 @@ function LatestStories() {
 // SECTION 6: IMAGE GALLERY — Thumbnail grid
 // =================================================================
 function ImageGallery() {
-  const images = Array.from({ length: 8 }, (_, i) => ({
-    id: i,
-    ratio: i % 3 === 0 ? 'aspect-[4/5]' : i % 3 === 1 ? 'aspect-[4/3]' : 'aspect-square',
-    bg: [
-      'from-navy/70 to-navy-dark',
-      'from-maroon/70 to-maroon-dark',
-      'from-navy-light to-navy',
-      'from-maroon-dark to-navy-dark',
-    ][i % 4],
-  }));
+  const images = [
+    {
+      src: '/archive/portraits/john-irick-1965.jpg',
+      alt: 'John Irick, 1965 — first African American graduate of Pomfret School',
+      caption: 'John Irick \'65 — first African American graduate',
+      ratio: 'aspect-[4/5]',
+    },
+    {
+      src: '/archive/portraits/1964-basketball-team.jpg',
+      alt: '1964 Pomfret basketball team',
+      caption: '1964 Pomfret basketball team',
+      ratio: 'aspect-[4/3]',
+    },
+    {
+      src: '/archive/portraits/naomi-vega.jpg',
+      alt: 'Naomi Vega \'69 — first female graduate of Pomfret',
+      caption: 'Naomi Vega \'69 — first female graduate',
+      ratio: 'aspect-square',
+    },
+    {
+      src: '/archive/portraits/first-girls-soccer.jpg',
+      alt: "First girls' soccer team at Pomfret, fall 1968",
+      caption: "First girls' soccer team, fall 1968",
+      ratio: 'aspect-[4/5]',
+    },
+    {
+      src: '/archive/portraits/original-six-banner.jpg',
+      alt: 'The Original Six — first six female boarders at Pomfret, 1968',
+      caption: 'The Original Six, 1968',
+      ratio: 'aspect-[4/3]',
+    },
+    {
+      src: '/archive/portraits/1964-dorm-naacp.jpg',
+      alt: '1964 dormitory NAACP poster at Pomfret',
+      caption: 'NAACP poster in a 1964 dorm',
+      ratio: 'aspect-square',
+    },
+    {
+      src: '/archive/portraits/trailblazers-banner.jpg',
+      alt: 'Pomfret trailblazers banner',
+      caption: 'Pomfret trailblazers',
+      ratio: 'aspect-[4/5]',
+    },
+    {
+      src: '/archive/portraits/class-heritage-1897-2003.jpg',
+      alt: 'Class heritage at Pomfret, 1897-2003',
+      caption: 'Class heritage, 1897–2003',
+      ratio: 'aspect-[4/3]',
+    },
+  ];
+
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (lightboxIdx === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIdx(null);
+      if (e.key === 'ArrowRight') setLightboxIdx((i) => (i === null ? null : (i + 1) % images.length));
+      if (e.key === 'ArrowLeft') setLightboxIdx((i) => (i === null ? null : (i - 1 + images.length) % images.length));
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [lightboxIdx, images.length]);
 
   return (
     <section className="py-24 lg:py-32 bg-warm-white">
@@ -472,31 +622,119 @@ function ImageGallery() {
           <div className="text-center mb-16">
             <SectionHeading bold="Through" rest="the Years" align="center" />
             <p className="mt-4 text-sm text-slate font-body italic">
-              Click any image to enlarge
+              Click any image to enlarge — use ← → to navigate, Esc to close
             </p>
           </div>
         </ScrollReveal>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
           {images.map((img, i) => (
-            <ScrollReveal key={img.id} delay={i * 0.05}>
+            <ScrollReveal key={img.src} delay={i * 0.05}>
               <button
-                className={`${img.ratio} w-full bg-gradient-to-br ${img.bg} rounded-sm overflow-hidden hover:opacity-80 transition-opacity relative group`}
-                aria-label={`View archival image ${img.id + 1}`}
+                onClick={() => setLightboxIdx(i)}
+                className={`${img.ratio} w-full bg-navy/5 rounded-sm overflow-hidden hover:opacity-90 transition-opacity relative group`}
+                aria-label={`Enlarge: ${img.caption}`}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/30" />
+                <Image
+                  src={img.src}
+                  alt={img.alt}
+                  fill
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="w-10 h-10 rounded-full bg-warm-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-warm-white/30 backdrop-blur-sm flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-warm-white">
                       <path d="M3 8H13M8 3V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                   </div>
+                </div>
+                <div className="absolute bottom-0 inset-x-0 px-3 py-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-xs text-warm-white font-body line-clamp-2 text-left">
+                    {img.caption}
+                  </p>
                 </div>
               </button>
             </ScrollReveal>
           ))}
         </div>
       </div>
+
+      <AnimatePresence>
+        {lightboxIdx !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setLightboxIdx(null)}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 lg:p-8"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Image preview"
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIdx(null);
+              }}
+              className="absolute top-4 right-4 lg:top-8 lg:right-8 w-12 h-12 rounded-full bg-warm-white/10 hover:bg-warm-white/20 text-warm-white flex items-center justify-center transition-colors z-10"
+              aria-label="Close"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIdx((i) => (i === null ? null : (i - 1 + images.length) % images.length));
+              }}
+              className="absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-warm-white/10 hover:bg-warm-white/20 text-warm-white flex items-center justify-center transition-colors z-10"
+              aria-label="Previous image"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M12 5L7 10L12 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIdx((i) => (i === null ? null : (i + 1) % images.length));
+              }}
+              className="absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-warm-white/10 hover:bg-warm-white/20 text-warm-white flex items-center justify-center transition-colors z-10"
+              aria-label="Next image"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M8 5L13 10L8 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+            <motion.div
+              key={lightboxIdx}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-5xl w-full max-h-[85vh] flex flex-col items-center"
+            >
+              <div className="relative w-full flex-1 min-h-0">
+                <Image
+                  src={images[lightboxIdx].src}
+                  alt={images[lightboxIdx].alt}
+                  width={1600}
+                  height={1200}
+                  className="object-contain w-full h-auto max-h-[80vh] rounded-sm"
+                  priority
+                />
+              </div>
+              <p className="mt-4 text-center text-sm text-warm-white/90 font-body">
+                {images[lightboxIdx].caption}
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
