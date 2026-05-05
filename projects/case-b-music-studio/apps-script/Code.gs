@@ -75,7 +75,24 @@
  *           → { ok, parent: { id, name }, created: [...emails],
  *                existed: [...emails], errors: [{email, message}] }
  *
- *  Future POST actions (Phases 5+) will follow the same shape:
+ *    Phase 5 — Teacher recaps. One structured recap per lesson row,
+ *    keyed by composite (studentEmail, lessonDate, startTime). Stored
+ *    in a "Lesson Recaps" tab auto-created on first save; upsert
+ *    semantics (write twice = update). Read endpoints never touch
+ *    the sheet schema (return [] when the tab doesn't exist yet).
+ *      {"action":"get-lesson-recap", "secret":"…", studentEmail,
+ *       lessonDate, startTime}
+ *           → { ok, recap: { ...fields, updatedAt } | null }
+ *      {"action":"save-lesson-recap", "secret":"…", studentEmail,
+ *       lessonDate, startTime, fields: { greeting, todayWe,
+ *       homework, nextClass } }
+ *           → { ok, recap: { ...saved-fields, updatedAt } }
+ *      {"action":"list-recaps-for-student", "secret":"…", studentEmail}
+ *           → { ok, recaps: [...] }
+ *      {"action":"list-recaps", "secret":"…"}
+ *           → { ok, recaps: [...] }
+ *
+ *  Future POST actions (Phases 6+) will follow the same shape:
  *    { "action": "<name>", "secret": "…", ...payload }
  *
  * The frontend clients live in:
@@ -207,6 +224,34 @@ var STUDENT_FOLDER_PROPERTY_PREFIX = "STUDENT_FOLDER:";
  * only non-owner editor, with the script owner implicitly as owner.
  */
 var STUDENT_RESOURCES_EXTRA_EDITORS = [];
+
+/**
+ * Phase 5 — Teacher recaps. Tab name + canonical header order. Auto-
+ * created on first save; never auto-deleted. Mirrors the
+ * "Lesson Schedule" composite key (studentEmail, lessonDate,
+ * startTime) so a recap binds permanently to the lesson instance it
+ * was written for, even if the lesson is later rescheduled.
+ */
+var LESSON_RECAPS_SHEET_NAME = "Lesson Recaps";
+
+/**
+ * Headers in the order they should appear when the tab is auto-
+ * created. The script reads by header name, so re-ordering the
+ * columns by hand later is safe; the script will still find them.
+ * Adding new columns to the right (e.g. for a future "delivered
+ * to student" timestamp) is also safe.
+ */
+var LESSON_RECAPS_HEADERS = [
+  "Student Email",
+  "Student Name",
+  "Lesson Date",
+  "Start Time",
+  "Greeting",
+  "Today We",
+  "Homework",
+  "Next Class",
+  "Updated At"
+];
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -421,6 +466,14 @@ function doPost(e) {
         return jsonResponse(handleEnsureStudentFolder(payload));
       case "sync-student-folders":
         return jsonResponse(handleSyncStudentFolders(payload));
+      case "get-lesson-recap":
+        return jsonResponse(handleGetLessonRecap(payload));
+      case "save-lesson-recap":
+        return jsonResponse(handleSaveLessonRecap(payload));
+      case "list-recaps-for-student":
+        return jsonResponse(handleListRecapsForStudent(payload));
+      case "list-recaps":
+        return jsonResponse(handleListRecaps(payload));
       default:
         return jsonResponse({ ok: false, error: "Unknown action: " + action });
     }
@@ -1454,6 +1507,294 @@ function getStudentRoster() {
   return emails.map(function (em) {
     return { email: em, name: nameByEmail[em] || "" };
   });
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 5 — Teacher recaps
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the recap for one specific lesson, or `null` if none exists.
+ * Read-only — never touches the schema. Lesson Recaps tab missing is
+ * a clean null return rather than an error so the UI can render an
+ * empty state without a server roundtrip first.
+ */
+function handleGetLessonRecap(payload) {
+  var key = parseRecapKey(payload);
+  var existing = findRecapRow(key);
+  return {
+    ok: true,
+    recap: existing ? existing.recap : null
+  };
+}
+
+/**
+ * Upserts the recap for one lesson. Auto-creates the Lesson Recaps
+ * tab + headers on first call so the teacher never has to set up the
+ * sheet manually. `fields` is an object with up to four string keys:
+ * greeting, todayWe, homework, nextClass. Missing fields default to
+ * empty string. Updated At is set server-side (current time in the
+ * spreadsheet's TZ).
+ */
+function handleSaveLessonRecap(payload) {
+  var key = parseRecapKey(payload);
+  var fields = (payload && payload.fields) || {};
+
+  var greeting = String(fields.greeting || "");
+  var todayWe = String(fields.todayWe || "");
+  var homework = String(fields.homework || "");
+  var nextClass = String(fields.nextClass || "");
+
+  // Pull the student's display name from the roster when available so
+  // recaps stay readable even if the original lesson row only had an
+  // email. We take "best name we know now"; if the form hasn't been
+  // submitted yet the column stays blank, which is fine.
+  var nameByEmail = getStudentNameMap();
+  var studentName = nameByEmail[key.studentEmail] || "";
+
+  var sheet = ensureRecapsSheet();
+  var headers = recapHeaders(sheet);
+  var emailCol = headerIndex(headers, "Student Email") + 1;
+  var nameCol = headerIndex(headers, "Student Name") + 1;
+  var dateCol = headerIndex(headers, "Lesson Date") + 1;
+  var startCol = headerIndex(headers, "Start Time") + 1;
+  var greetingCol = headerIndex(headers, "Greeting") + 1;
+  var todayCol = headerIndex(headers, "Today We") + 1;
+  var homeworkCol = headerIndex(headers, "Homework") + 1;
+  var nextCol = headerIndex(headers, "Next Class") + 1;
+  var updatedCol = headerIndex(headers, "Updated At") + 1;
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tz = ss.getSpreadsheetTimeZone();
+  var now = new Date();
+  var nowIso = Utilities.formatDate(now, tz, "yyyy-MM-dd'T'HH:mm:ssXXX");
+
+  var existing = findRecapRow(key);
+  var rowIndex;
+  if (existing) {
+    rowIndex = existing.rowIndex;
+  } else {
+    rowIndex = sheet.getLastRow() + 1;
+    sheet.getRange(rowIndex, emailCol).setValue(key.studentEmail);
+    sheet.getRange(rowIndex, dateCol).setValue(key.lessonDate);
+    sheet.getRange(rowIndex, startCol).setValue(key.startTime);
+  }
+
+  // Always refresh the display name from the roster on save — keeps it
+  // consistent if a student renamed themselves on the form.
+  if (studentName) sheet.getRange(rowIndex, nameCol).setValue(studentName);
+  sheet.getRange(rowIndex, greetingCol).setValue(greeting);
+  sheet.getRange(rowIndex, todayCol).setValue(todayWe);
+  sheet.getRange(rowIndex, homeworkCol).setValue(homework);
+  sheet.getRange(rowIndex, nextCol).setValue(nextClass);
+  sheet.getRange(rowIndex, updatedCol).setValue(nowIso);
+  SpreadsheetApp.flush();
+
+  return {
+    ok: true,
+    recap: {
+      studentEmail: key.studentEmail,
+      studentName: studentName,
+      lessonDate: key.lessonDate,
+      startTime: key.startTime,
+      greeting: greeting,
+      todayWe: todayWe,
+      homework: homework,
+      nextClass: nextClass,
+      updatedAt: nowIso
+    }
+  };
+}
+
+/**
+ * Returns every recap for one student, sorted by lesson date desc
+ * then start time desc (newest first). `[]` when the tab is missing
+ * or the student has no recaps yet.
+ */
+function handleListRecapsForStudent(payload) {
+  var email = String((payload && payload.studentEmail) || "")
+    .trim()
+    .toLowerCase();
+  if (!email) throw new Error("Missing studentEmail");
+
+  var recaps = readAllRecaps().filter(function (r) {
+    return String(r.studentEmail).toLowerCase() === email;
+  });
+  recaps.sort(compareRecapsNewestFirst);
+  return { ok: true, recaps: recaps };
+}
+
+/**
+ * Returns every recap in the system, sorted newest first. Used by
+ * the Recaps tab page on the website.
+ */
+function handleListRecaps(payload) {
+  var recaps = readAllRecaps();
+  recaps.sort(compareRecapsNewestFirst);
+  return { ok: true, recaps: recaps };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 5 — helpers
+// ──────────────────────────────────────────────────────────────────────
+
+function parseRecapKey(payload) {
+  var studentEmail = String((payload && payload.studentEmail) || "")
+    .trim()
+    .toLowerCase();
+  var lessonDate = String((payload && payload.lessonDate) || "").trim();
+  var startTime = String((payload && payload.startTime) || "").trim();
+  if (!studentEmail) throw new Error("Missing studentEmail");
+  if (!lessonDate) throw new Error("Missing lessonDate");
+  if (!startTime) throw new Error("Missing startTime");
+  return { studentEmail: studentEmail, lessonDate: lessonDate, startTime: startTime };
+}
+
+/**
+ * Returns the Lesson Recaps sheet, creating it (with the canonical
+ * header row) if it doesn't exist. Idempotent. Existing tabs with
+ * a different column order are left alone — we look up columns by
+ * header name, not position.
+ */
+function ensureRecapsSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(LESSON_RECAPS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(LESSON_RECAPS_SHEET_NAME);
+    sheet.getRange(1, 1, 1, LESSON_RECAPS_HEADERS.length)
+      .setValues([LESSON_RECAPS_HEADERS])
+      .setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  } else if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, LESSON_RECAPS_HEADERS.length)
+      .setValues([LESSON_RECAPS_HEADERS])
+      .setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/**
+ * Returns the header row of the Lesson Recaps tab. Auto-appends any
+ * headers from LESSON_RECAPS_HEADERS that are missing (so older
+ * sheets created before a new column was added still work).
+ */
+function recapHeaders(sheet) {
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var existing = {};
+  headers.forEach(function (h) { existing[String(h).trim()] = true; });
+  var missing = LESSON_RECAPS_HEADERS.filter(function (h) { return !existing[h]; });
+  if (missing.length > 0) {
+    var startCol = lastCol + 1;
+    sheet.getRange(1, startCol, 1, missing.length)
+      .setValues([missing])
+      .setFontWeight("bold");
+    headers = headers.concat(missing);
+  }
+  return headers;
+}
+
+/**
+ * Looks up one recap row by composite key. Returns
+ * `{ rowIndex, recap }` (1-indexed) or `null` when no match. Returns
+ * `null` (not throws) when the tab doesn't exist, which is the
+ * pre-first-save state.
+ */
+function findRecapRow(key) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(LESSON_RECAPS_SHEET_NAME);
+  if (!sheet) return null;
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return null;
+
+  var headers = data[0];
+  var emailCol = headerIndex(headers, "Student Email");
+  var dateCol = headerIndex(headers, "Lesson Date");
+  var startCol = headerIndex(headers, "Start Time");
+  if (emailCol === -1 || dateCol === -1 || startCol === -1) return null;
+
+  var ssTz = ss.getSpreadsheetTimeZone();
+  for (var r = 1; r < data.length; r++) {
+    var rowEmail = String(data[r][emailCol] || "").trim().toLowerCase();
+    if (rowEmail !== key.studentEmail) continue;
+    var rowDate = normalizeSheetDate(data[r][dateCol], ssTz);
+    if (rowDate !== key.lessonDate) continue;
+    var rowStart = normalizeSheetTime(data[r][startCol], ssTz);
+    if (rowStart !== key.startTime) continue;
+    return {
+      rowIndex: r + 1,
+      recap: recapRowToObject(headers, data[r], ssTz)
+    };
+  }
+  return null;
+}
+
+/**
+ * Reads every recap from the Lesson Recaps tab into a plain JS array.
+ * Returns `[]` when the tab is missing — which is normal until the
+ * teacher saves their first recap.
+ */
+function readAllRecaps() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(LESSON_RECAPS_SHEET_NAME);
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  var headers = data[0];
+  var ssTz = ss.getSpreadsheetTimeZone();
+  var out = [];
+  for (var r = 1; r < data.length; r++) {
+    var row = data[r];
+    var email = String(row[headerIndex(headers, "Student Email")] || "").trim();
+    if (!email) continue; // skip blank rows
+    out.push(recapRowToObject(headers, row, ssTz));
+  }
+  return out;
+}
+
+function recapRowToObject(headers, row, ssTz) {
+  function pick(name) {
+    var idx = headerIndex(headers, name);
+    return idx === -1 ? "" : row[idx];
+  }
+  var dateRaw = pick("Lesson Date");
+  var startRaw = pick("Start Time");
+  var updatedRaw = pick("Updated At");
+
+  var lessonDate = normalizeSheetDate(dateRaw, ssTz);
+  var startTime = normalizeSheetTime(startRaw, ssTz);
+  var updatedAt;
+  if (updatedRaw instanceof Date) {
+    updatedAt = updatedRaw.toISOString();
+  } else {
+    updatedAt = String(updatedRaw || "").trim();
+  }
+
+  return {
+    studentEmail: String(pick("Student Email") || "").trim().toLowerCase(),
+    studentName: String(pick("Student Name") || "").trim(),
+    lessonDate: lessonDate,
+    startTime: startTime,
+    greeting: String(pick("Greeting") || ""),
+    todayWe: String(pick("Today We") || ""),
+    homework: String(pick("Homework") || ""),
+    nextClass: String(pick("Next Class") || ""),
+    updatedAt: updatedAt
+  };
+}
+
+/** Sort comparator: newer lesson first; if same date, later start first. */
+function compareRecapsNewestFirst(a, b) {
+  if (a.lessonDate < b.lessonDate) return 1;
+  if (a.lessonDate > b.lessonDate) return -1;
+  // Same date — compare start times. Wall-clock strings sort poorly;
+  // compare via Date objects parsed with parseWallClockTime.
+  var ah = parseWallClockTime(a.startTime) || { h: 0, m: 0 };
+  var bh = parseWallClockTime(b.startTime) || { h: 0, m: 0 };
+  var aMin = ah.h * 60 + ah.m;
+  var bMin = bh.h * 60 + bh.m;
+  return bMin - aMin;
 }
 
 /**
