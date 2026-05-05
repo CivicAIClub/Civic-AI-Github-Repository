@@ -22,7 +22,13 @@ import {
 import { studentInitials } from "../lib/displayUtils";
 import { LessonRow } from "../components/LessonRow";
 import { StudentResourcesSection } from "../components/StudentResourcesSection";
-import type { ScheduledLesson, Student } from "../types";
+import { RecapsTimeline } from "../components/RecapsTimeline";
+import {
+  RecapEditorModal,
+  type RecapEditorTarget,
+} from "../components/RecapEditorModal";
+import { listRecapsForStudent } from "../api/appsScriptRecaps";
+import type { LessonRecap, ScheduledLesson, Student } from "../types";
 
 const RECENT_LESSONS_INITIAL_VISIBLE = 5;
 
@@ -113,7 +119,14 @@ function StudentDetailPanel({
   const [notesSaveStatus, setNotesSaveStatus] = useState<
     "idle" | "pending" | "saved"
   >("idle");
-  const [showAllRecent, setShowAllRecent] = useState(false);
+
+  // Phase 5 — recaps for this student. Loaded once on student switch
+  // and refreshed after a successful save (the modal returns the saved
+  // recap directly so we can patch the local list without another GET).
+  const [recaps, setRecaps] = useState<LessonRecap[]>([]);
+  const [recapsLoaded, setRecapsLoaded] = useState(false);
+  const [recapModalTarget, setRecapModalTarget] =
+    useState<RecapEditorTarget | null>(null);
 
   const teacherNotesDraftRef = useRef(teacherNotesDraft);
   teacherNotesDraftRef.current = teacherNotesDraft;
@@ -127,8 +140,81 @@ function StudentDetailPanel({
     setTeacherNotesDraft(next);
     teacherNotesDraftRef.current = next;
     setNotesSaveStatus("idle");
-    setShowAllRecent(false);
   }, [student.id, student.teacherNotes]);
+
+  // Refetch recaps every time the panel switches student. Failures
+  // here are non-fatal — the timeline just renders "Write recap"
+  // affordances and the user can still compose; the next save will
+  // surface any backend error inline in the modal.
+  useEffect(() => {
+    const email = student.sheetEmail ?? student.id;
+    const ac = new AbortController();
+    setRecapsLoaded(false);
+    setRecaps([]);
+    listRecapsForStudent(email, { signal: ac.signal })
+      .then((list) => {
+        setRecaps(list);
+        setRecapsLoaded(true);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // Tab not yet created (first ever recap save) is a clean empty
+        // list on the backend; any other error is silently treated as
+        // "no recaps loaded" so the timeline still renders the
+        // lessons + "Write recap" buttons.
+        setRecaps([]);
+        setRecapsLoaded(true);
+      });
+    return () => ac.abort();
+  }, [student.id, student.sheetEmail]);
+
+  const openWriteRecap = useCallback((lesson: ScheduledLesson) => {
+    setRecapModalTarget({
+      key: {
+        studentEmail: lesson.studentEmail,
+        lessonDate: lesson.lessonDate,
+        startTime: lesson.startTime,
+      },
+      studentName: lesson.studentName,
+      lessonFocus: lesson.lessonFocus,
+      endTime: lesson.endTime,
+    });
+  }, []);
+
+  const openEditRecap = useCallback(
+    (lesson: ScheduledLesson, _recap: LessonRecap) => {
+      // Edit mode reuses the same modal — it'll fetch the existing
+      // recap on open and pre-fill. The `_recap` is intentionally
+      // unused: the modal is the source of truth for "what was
+      // saved" so we avoid stale prop concerns.
+      setRecapModalTarget({
+        key: {
+          studentEmail: lesson.studentEmail,
+          lessonDate: lesson.lessonDate,
+          startTime: lesson.startTime,
+        },
+        studentName: lesson.studentName,
+        lessonFocus: lesson.lessonFocus,
+        endTime: lesson.endTime,
+      });
+    },
+    []
+  );
+
+  const handleRecapSaved = useCallback((saved: LessonRecap) => {
+    setRecaps((prev) => {
+      const idx = prev.findIndex(
+        (r) =>
+          r.studentEmail === saved.studentEmail &&
+          r.lessonDate === saved.lessonDate &&
+          r.startTime === saved.startTime
+      );
+      if (idx === -1) return [saved, ...prev];
+      const next = prev.slice();
+      next[idx] = saved;
+      return next;
+    });
+  }, []);
 
   const clearNotesSaveTimeout = useCallback(() => {
     if (notesSaveTimeoutRef.current !== null) {
@@ -364,50 +450,20 @@ function StudentDetailPanel({
                 Recent
                 {schedulePartition.recentLessons.length > 0 && (
                   <span className="muted">
-                    {" "}
-                    ·{" "}
-                    {showAllRecent ||
-                    schedulePartition.recentLessons.length <=
-                      RECENT_LESSONS_INITIAL_VISIBLE
-                      ? `${schedulePartition.recentLessons.length} total`
-                      : `showing ${RECENT_LESSONS_INITIAL_VISIBLE} of ${schedulePartition.recentLessons.length}`}
+                    {" "}· {schedulePartition.recentLessons.length} total
                   </span>
                 )}
+                {!recapsLoaded && schedulePartition.recentLessons.length > 0 && (
+                  <span className="muted"> · loading recaps…</span>
+                )}
               </p>
-              {schedulePartition.recentLessons.length === 0 ? (
-                <p className="muted profile-booked__line">—</p>
-              ) : (
-                <>
-                  <div className="lesson-rows">
-                    {(showAllRecent
-                      ? schedulePartition.recentLessons
-                      : schedulePartition.recentLessons.slice(
-                          0,
-                          RECENT_LESSONS_INITIAL_VISIBLE
-                        )
-                    ).map((lesson, i) => (
-                      <LessonRow
-                        key={lessonStableKey(lesson, i)}
-                        lesson={lesson}
-                        variant="static"
-                      />
-                    ))}
-                  </div>
-                  {schedulePartition.recentLessons.length >
-                    RECENT_LESSONS_INITIAL_VISIBLE && (
-                    <button
-                      type="button"
-                      className="button-ghost profile-booked__show-all"
-                      onClick={() => setShowAllRecent((prev) => !prev)}
-                      aria-expanded={showAllRecent}
-                    >
-                      {showAllRecent
-                        ? "Show fewer"
-                        : `Show all ${schedulePartition.recentLessons.length}`}
-                    </button>
-                  )}
-                </>
-              )}
+              <RecapsTimeline
+                lessons={schedulePartition.recentLessons}
+                recaps={recaps}
+                initialVisible={RECENT_LESSONS_INITIAL_VISIBLE}
+                onWriteRecap={openWriteRecap}
+                onEditRecap={openEditRecap}
+              />
             </>
           )}
         </div>
@@ -448,6 +504,12 @@ function StudentDetailPanel({
           )}
         </div>
       </section>
+
+      <RecapEditorModal
+        target={recapModalTarget}
+        onClose={() => setRecapModalTarget(null)}
+        onSaved={handleRecapSaved}
+      />
     </div>
   );
 }

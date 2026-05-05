@@ -126,6 +126,45 @@ Three new POST actions are exposed:
 
 **Permission scope:** student gets **editor**; you stay owner; `STUDENT_RESOURCES_EXTRA_EDITORS` (empty by default) lets you always-add Dr. Burns / a co-teacher. The script never **lowers** a permission and never deletes a folder, so removing a student from the roster leaves their work intact. Bulk sync is exposed on the Dashboard via a "Sync all student folders" admin card.
 
+### Phase 5 — Teacher recaps
+
+Structured per-lesson recap that the teacher writes after each lesson, displayed both inline under the lesson row on the student's profile **and** on a new top-level **Recaps** tab. Format mirrors the structure Mr. O'Neal asked for:
+
+```
+Hi {Name}, {greeting body}
+
+Today we:
+{multiline list of what was covered}
+
+HOMEWORK:
+{multiline list}
+
+Next Class:
+{multiline list}
+```
+
+The "Hi {Name}," opener is rendered automatically using the student's roster name; the teacher only types the rest of the greeting.
+
+**Storage:** a new `Lesson Recaps` tab in the same Google Sheet, **auto-created on first save** — no manual setup. Schema:
+
+| Student Email | Student Name | Lesson Date | Start Time | Greeting | Today We | Homework | Next Class | Updated At |
+|---|---|---|---|---|---|---|---|---|
+
+Composite key `(Student Email, Lesson Date, Start Time)` — same as Phase 2's calendar key, so a recap binds permanently to a specific lesson instance. Upsert semantics: writing twice updates the same row. Drafts in progress are saved to localStorage so closing the tab mid-compose doesn't lose work.
+
+**No new Script Property required** for Phase 5 — the only deploy step is redeploying `Code.gs` so the four new POST actions are exposed.
+
+| Action | Body fields | Effect |
+|---|---|---|
+| `get-lesson-recap` | `studentEmail`, `lessonDate`, `startTime` | Returns the recap or `null`. Read-only. |
+| `save-lesson-recap` | same + `fields: { greeting, todayWe, homework, nextClass }` | Upserts. Auto-creates the tab on first call. |
+| `list-recaps-for-student` | `studentEmail` | All recaps for one student, newest first. |
+| `list-recaps` | (none beyond `secret`) | Every recap in the system, newest first. |
+
+**Where to compose / view:**
+- **Compose / edit:** Students page → click a student → in their **Recent** lessons list, each row gets a `Write recap` button (or `View recap` / `Edit` if one exists). Compose modal pre-fills `Hi {Name},` automatically and persists drafts to localStorage.
+- **Browse all:** new **Recaps** tab in the top nav (`/recaps`) — read-only listing grouped by student, with a name/email filter.
+
 ## App structure (prototype)
 
 - **Dashboard** — roster count, student name search (links to Students with profile open), recent updates and upcoming lessons when APIs succeed.
