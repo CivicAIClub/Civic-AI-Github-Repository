@@ -127,7 +127,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="w-9 h-9 rounded-full border border-warm-white/20 text-warm-white/70 hover:text-warm-white hover:border-warm-white/50 hover:bg-warm-white/5 transition-colors flex items-center justify-center"
+                  className="w-11 h-11 rounded-full border border-warm-white/20 text-warm-white/70 hover:text-warm-white hover:border-warm-white/50 hover:bg-warm-white/5 transition-colors flex items-center justify-center"
                 >
                   {s.icon}
                 </a>
@@ -148,7 +148,7 @@ export default function Footer() {
                       href={link.href}
                       target={link.external ? '_blank' : undefined}
                       rel={link.external ? 'noopener noreferrer' : undefined}
-                      className="text-sm text-warm-white/60 hover:text-maroon-light transition-colors duration-200"
+                      className="text-sm text-warm-white/60 hover:text-maroon-light hover:underline underline-offset-4 decoration-1 transition-colors duration-200"
                     >
                       {link.label}
                     </Link>
@@ -165,11 +165,24 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} Pomfret School. All rights reserved.
           </p>
           <div className="flex flex-wrap items-center gap-4 text-xs text-warm-white/40">
-            <Link href="/ai-bias" className="hover:text-warm-white transition-colors">
+            <Link
+              href="/privacy"
+              className="hover:text-warm-white hover:underline underline-offset-4 decoration-1 transition-colors"
+            >
+              Privacy
+            </Link>
+            <span className="text-warm-white/20">|</span>
+            <Link
+              href="/accessibility"
+              className="hover:text-warm-white hover:underline underline-offset-4 decoration-1 transition-colors"
+            >
               Accessibility
             </Link>
             <span className="text-warm-white/20">|</span>
-            <Link href="/ai-bias" className="hover:text-warm-white transition-colors">
+            <Link
+              href="/ai-bias"
+              className="hover:text-warm-white hover:underline underline-offset-4 decoration-1 transition-colors"
+            >
               AI Ethics
             </Link>
             <span className="text-warm-white/20">|</span>
@@ -177,12 +190,10 @@ export default function Footer() {
               href="https://www.pomfret.org"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-warm-white transition-colors"
+              className="hover:text-warm-white hover:underline underline-offset-4 decoration-1 transition-colors"
             >
               Main Site
             </a>
-            <span className="text-warm-white/20">|</span>
-            <span>WCAG 2.1 AA</span>
           </div>
         </div>
       </div>

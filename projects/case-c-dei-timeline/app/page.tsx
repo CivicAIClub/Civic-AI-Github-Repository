@@ -1,56 +1,72 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { m, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 import SectionHeading from '@/components/layout/SectionHeading';
 
 // =================================================================
-// SECTION 1: HERO — pomfret.org-style auto-advancing slideshow
+// SECTION 1: HERO — authentic Pomfret archival + campus imagery
 // =================================================================
+// Each slide pairs a headline with a real Pomfret photograph spanning the
+// school's 130-year arc — from the 1894 founder on the Hilltop through the
+// first female Head of School in 2025. `imagePosition` is tuned per slide so
+// the subject's face stays visible after object-cover crops to viewport.
 const heroSlides = [
   {
     id: 0,
     headline: 'A Living Archive of',
     accent: 'Every Voice',
     subtitle: 'Exploring 130 years of diversity, equity, and inclusion at Pomfret School.',
-    gradient: 'from-pomfret-navy via-navy to-maroon-dark',
+    image: '/heads/heather-willis-daly.jpg',
+    imagePosition: '50% 25%',
+    caption: 'Heather Willis Daly · Pomfret\u2019s first female Head of School',
   },
   {
     id: 1,
     headline: 'Every Story',
     accent: 'Matters Here',
     subtitle: 'Since 1894, the voices that shape our community have shaped our mission.',
-    gradient: 'from-maroon-dark via-pomfret-navy to-navy',
+    image: '/heads/william-e-peck.png',
+    // Peck is a full-body portrait with his face in the top ~18% of the frame.
+    imagePosition: '50% 12%',
+    caption: 'William E. Peck · Founder, on the Hilltop, 1894',
   },
   {
     id: 2,
     headline: 'More Than',
     accent: 'Four Decades',
     subtitle: 'Of diversity, integration, and intentional inclusion on the Hilltop.',
-    gradient: 'from-navy via-pomfret-navy to-maroon',
+    image: '/heads/tim-richards.jpg',
+    imagePosition: '50% 30%',
+    caption: 'Tim Richards with students · Pomfret School',
   },
   {
     id: 3,
     headline: 'Change Makers.',
     accent: 'Problem Solvers.',
     subtitle: 'The people, programs, and milestones that define the Pomfret we are becoming.',
-    gradient: 'from-pomfret-navy via-maroon-dark to-navy',
+    image: '/heads/jay-milnor.jpg',
+    imagePosition: '50% 20%',
+    caption: 'Joseph \u201CJay\u201D Milnor · Headmaster who admitted Pomfret\u2019s first Black and first female students',
   },
 ];
 
 function HeroSection() {
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
+  // Auto-advance is off by default for users who prefer reduced motion.
+  const prefersReducedMotion = useReducedMotion();
+  const [paused, setPaused] = useState<boolean>(!!prefersReducedMotion);
 
   useEffect(() => {
-    if (paused) return;
+    if (paused || prefersReducedMotion) return;
     const t = setInterval(() => {
       setActive((i) => (i + 1) % heroSlides.length);
     }, 6000);
     return () => clearInterval(t);
-  }, [paused]);
+  }, [paused, prefersReducedMotion]);
 
   const slide = heroSlides[active];
 
@@ -60,33 +76,71 @@ function HeroSection() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Slide backgrounds — cross-fade between gradients with Ken Burns zoom */}
+      {/* Dark navy backdrop — shows through gaps and sets the base tone
+          while images are loading. */}
+      <div className="absolute inset-0 bg-pomfret-navy" />
+
+      {/* Slide backgrounds — each slide cross-fades an authentic Pomfret
+          photograph with a slow Ken Burns zoom for archival cinematic feel.
+          Reduced-motion users get a static image, no zoom, no cross-fade. */}
       {heroSlides.map((s, i) => (
-        <motion.div
+        <m.div
           key={s.id}
           initial={false}
           animate={{
             opacity: i === active ? 1 : 0,
-            scale: i === active ? 1.05 : 1,
+            scale: prefersReducedMotion ? 1 : i === active ? 1.06 : 1,
           }}
           transition={{
-            opacity: { duration: 1.2, ease: 'easeInOut' },
-            scale: { duration: 8, ease: 'linear' },
+            opacity: { duration: prefersReducedMotion ? 0 : 0.9, ease: 'easeInOut' },
+            scale: { duration: prefersReducedMotion ? 0 : 9, ease: 'linear' },
           }}
-          className={`absolute inset-0 bg-gradient-to-br ${s.gradient}`}
-        />
+          className="absolute inset-0"
+          aria-hidden={i !== active}
+        >
+          <Image
+            src={s.image}
+            alt=""
+            fill
+            priority={i === 0}
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition: s.imagePosition }}
+          />
+        </m.div>
       ))}
 
-      {/* Subtle grain overlay for archival feel */}
-      <div
-        className="absolute inset-0 opacity-[0.08] mix-blend-overlay pointer-events-none"
-        style={{
-          backgroundImage:
-            'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
-        }}
-      />
-      {/* Darken bottom for better text contrast */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40 pointer-events-none" />
+      {/* Legibility scrim — a single universal dark layer shared across all
+          slides. Neutral (no color tint) so it doesn't muddy the photograph:
+          just a soft overall darken with a stronger wash at the top and
+          bottom edges where the nav and caption sit. */}
+      <div className="absolute inset-0 bg-black/35 pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+
+      {/* Pomfret architectural motif — a subtle arched-window silhouette
+          that evokes the Gothic Revival buildings on the Hilltop (School
+          House, Clark Memorial Chapel). Sits just above the indicators. */}
+      <svg
+        className="absolute left-1/2 -translate-x-1/2 bottom-32 w-[min(520px,70vw)] h-12 text-warm-white/15 pointer-events-none"
+        viewBox="0 0 520 48"
+        fill="none"
+        aria-hidden="true"
+      >
+        {/* Three Gothic-style arches separated by slim pilasters — stylized */}
+        <path
+          d="M10 48 V18 Q10 4 30 4 T50 18 V48 M90 48 V14 Q90 0 110 0 T130 14 V48 M170 48 V10 Q170 -4 190 -4 T210 10 V48"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <path
+          d="M310 48 V10 Q310 -4 330 -4 T350 10 V48 M390 48 V14 Q390 0 410 0 T430 14 V48 M470 48 V18 Q470 4 490 4 T510 18 V48"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <line x1="260" y1="8" x2="260" y2="48" stroke="currentColor" strokeWidth="0.75" />
+        <circle cx="260" cy="4" r="2.5" stroke="currentColor" strokeWidth="0.75" />
+      </svg>
 
       {/* Carousel navigation arrows */}
       <button
@@ -110,7 +164,7 @@ function HeroSection() {
 
       {/* Centered headline — swaps with slide */}
       <div className="relative z-10 text-center px-6 max-w-5xl">
-        <motion.div
+        <m.div
           key={`kicker-${slide.id}`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -124,9 +178,9 @@ function HeroSection() {
             </span>
             <div className="w-12 h-px bg-maroon-light" />
           </div>
-        </motion.div>
+        </m.div>
 
-        <motion.h1
+        <m.h1
           key={`headline-${slide.id}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -137,9 +191,9 @@ function HeroSection() {
           {slide.headline}
           <br />
           <span className="italic font-normal">{slide.accent}</span>
-        </motion.h1>
+        </m.h1>
 
-        <motion.p
+        <m.p
           key={`subtitle-${slide.id}`}
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -148,13 +202,31 @@ function HeroSection() {
           style={{ textShadow: '0 1px 10px rgba(0,0,0,0.5)' }}
         >
           {slide.subtitle}
-        </motion.p>
+        </m.p>
       </div>
+
+      {/* Image credit / caption — small archival-style attribution that
+          changes with each slide. Sits above the indicators bottom-left. */}
+      <m.div
+        key={`caption-${slide.id}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.4 }}
+        className="absolute bottom-10 left-6 lg:left-12 z-20 max-w-xs hidden sm:block"
+      >
+        <div className="flex items-center gap-2 text-[10px] font-body tracking-[0.2em] uppercase text-warm-white/60">
+          <span className="w-6 h-px bg-warm-white/40" />
+          <span>From the Archive</span>
+        </div>
+        <p className="mt-2 text-xs font-body text-warm-white/75 italic leading-snug">
+          {slide.caption}
+        </p>
+      </m.div>
 
       {/* Play/Pause control */}
       <button
         onClick={() => setPaused((p) => !p)}
-        className="absolute bottom-8 right-8 lg:right-12 z-20 w-9 h-9 rounded-full border border-warm-white/30 text-warm-white/70 hover:text-warm-white hover:border-warm-white transition-all flex items-center justify-center"
+        className="absolute bottom-8 right-8 lg:right-12 z-20 w-11 h-11 rounded-full border border-warm-white/30 text-warm-white/70 hover:text-warm-white hover:border-warm-white transition-all flex items-center justify-center"
         aria-label={paused ? 'Play slideshow' : 'Pause slideshow'}
       >
         {paused ? (
@@ -176,10 +248,14 @@ function HeroSection() {
             key={s.id}
             onClick={() => setActive(i)}
             aria-label={`Go to slide ${i + 1}`}
-            className={`transition-all h-0.5 ${
-              i === active ? 'w-10 bg-warm-white' : 'w-2 bg-warm-white/40 hover:bg-warm-white/70'
-            }`}
-          />
+            className="relative flex items-center justify-center min-w-[44px] min-h-[44px] group"
+          >
+            <span
+              className={`block transition-all h-0.5 ${
+                i === active ? 'w-10 bg-warm-white' : 'w-2 bg-warm-white/40 group-hover:bg-warm-white/70'
+              }`}
+            />
+          </button>
         ))}
       </div>
     </section>
@@ -314,62 +390,207 @@ function SignatureExhibits() {
 }
 
 // =================================================================
-// SECTION 4: REMARKABLE VOICES — 6-column carousel of profiles
+// SECTION 4: REMARKABLE VOICES — editorial portrait cards
 // =================================================================
+// Each voice gets one of two card treatments:
+//   • photo card — real archival/contemporary portrait + brand wash
+//   • monogram card — large display-font initials on a tinted brand
+//     surface; intentional typography, NOT a missing-photo placeholder
+// Cards link to the relevant timeline event or profile so the section
+// is a real entry point rather than decoration.
+type Voice = {
+  name: string;
+  year: string;
+  role: string;
+  quote: string;
+  href: string;
+  // When present, renders the photo card variant.
+  image?: string;
+  imagePosition?: string;
+  // Color rotation for monogram cards: alternates navy / maroon / cream.
+  tone?: 'navy' | 'maroon' | 'cream';
+};
+
+const voices: Voice[] = [
+  {
+    name: 'John Irick',
+    year: '\u201965',
+    role: 'First African American graduate',
+    quote: 'For me, Pomfret was a dream come true.',
+    href: '/humans-of-pomfret/john-irick',
+    tone: 'navy',
+  },
+  {
+    name: 'Naomi Vega',
+    year: '\u201969',
+    role: 'First female graduate',
+    quote: 'It was a time of major upheaval in the country.',
+    href: '/humans-of-pomfret/naomi-vega',
+    tone: 'maroon',
+  },
+  {
+    name: 'Michael Gary',
+    year: '\u201982',
+    role: 'First Director of Multicultural Affairs',
+    quote: 'The best decision of my life.',
+    href: '/timeline',
+    tone: 'cream',
+  },
+  {
+    name: 'Heather Willis Daly',
+    year: '2025',
+    role: 'First female Head of School',
+    quote: 'The Pomfret we are becoming.',
+    href: '/humans-of-pomfret/heads-of-school',
+    image: '/heads/heather-willis-daly.jpg',
+    imagePosition: '50% 25%',
+  },
+  {
+    name: 'Dr. Coretta McCarter',
+    year: 'Today',
+    role: 'Dean of Diversity, Equity & Inclusion',
+    quote: 'A day on for justice.',
+    href: '/timeline',
+    tone: 'navy',
+  },
+  {
+    name: 'VOICE',
+    year: '1984',
+    role: 'Multicultural student leadership',
+    quote: 'To make a voice \u2014 in all capital letters.',
+    href: '/timeline',
+    tone: 'maroon',
+  },
+];
+
+function VoiceCard({ voice, index, total }: { voice: Voice; index: number; total: number }) {
+  // Build the monogram from the first two name tokens, stripping titles.
+  const initials = voice.name
+    .replace(/^(Dr\.|Lt\. Col\.|The Honorable) /, '')
+    .split(' ')
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join('');
+
+  // Photo variant — portrait fills the card under a brand wash. Used when
+  // we have a real, consented photo (e.g. Heather Willis Daly).
+  if (voice.image) {
+    return (
+      <Link
+        href={voice.href}
+        className="group relative block aspect-[3/4] rounded-2xl overflow-hidden bg-pomfret-navy"
+      >
+        <Image
+          src={voice.image}
+          alt={`Portrait of ${voice.name}`}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          style={{ objectPosition: voice.imagePosition ?? '50% 30%' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-pomfret-navy/95 via-pomfret-navy/40 to-transparent" />
+        <span className="absolute top-4 right-4 text-[10px] font-body tabular-nums text-warm-white/50">
+          {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+        </span>
+        <div className="absolute inset-x-0 bottom-0 p-5">
+          <div className="text-[10px] font-body font-bold tracking-[0.25em] uppercase text-maroon-light mb-2">
+            {voice.year}
+          </div>
+          <h4 className="font-display text-lg lg:text-xl text-warm-white leading-tight mb-1">
+            {voice.name}
+          </h4>
+          <p className="text-[11px] text-warm-white/70 font-body leading-snug">{voice.role}</p>
+        </div>
+      </Link>
+    );
+  }
+
+  // Monogram variant — large display-font initials on a brand surface.
+  // Hovering reveals the quote in an overlay panel.
+  const tone = voice.tone ?? 'navy';
+  const surface =
+    tone === 'cream'
+      ? 'bg-cream text-navy border-mist'
+      : tone === 'maroon'
+      ? 'bg-maroon text-warm-white border-maroon'
+      : 'bg-pomfret-navy text-warm-white border-pomfret-navy';
+  const counterColor = tone === 'cream' ? 'text-navy/30' : 'text-warm-white/40';
+  const yearColor = tone === 'cream' ? 'text-maroon' : 'text-maroon-light';
+  const monogramColor = tone === 'cream' ? 'text-navy/15' : 'text-warm-white/15';
+  const subtleColor = tone === 'cream' ? 'text-slate' : 'text-warm-white/70';
+
+  return (
+    <Link
+      href={voice.href}
+      className={`group relative block aspect-[3/4] rounded-2xl overflow-hidden border ${surface} flex flex-col justify-between p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5`}
+    >
+      {/* Year tag (top-left) + index counter (top-right) */}
+      <div className={`text-[10px] font-body font-bold tracking-[0.25em] uppercase ${yearColor}`}>
+        {voice.year}
+      </div>
+      <span className={`absolute top-5 right-5 text-[10px] font-body tabular-nums ${counterColor}`}>
+        {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+      </span>
+
+      {/* Large monogram, vertically centered */}
+      <div className="flex-1 flex items-center justify-center">
+        <span className={`font-display text-[clamp(3.5rem,5vw,5rem)] leading-none ${monogramColor}`}>
+          {initials}
+        </span>
+      </div>
+
+      {/* Name + role (bottom) */}
+      <div>
+        <h4 className="font-display text-lg lg:text-xl leading-tight mb-1">{voice.name}</h4>
+        <p className={`text-[11px] font-body leading-snug ${subtleColor}`}>{voice.role}</p>
+      </div>
+
+      {/* Hover-revealed quote panel — full-card overlay */}
+      <div className="absolute inset-0 bg-pomfret-navy text-warm-white p-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between pointer-events-none">
+        <div className="text-[10px] font-body font-bold tracking-[0.25em] uppercase text-maroon-light">
+          {voice.year}
+        </div>
+        <blockquote className="font-display text-base lg:text-lg italic leading-snug">
+          &ldquo;{voice.quote}&rdquo;
+        </blockquote>
+        <div>
+          <h4 className="font-display text-lg leading-tight mb-1">{voice.name}</h4>
+          <p className="text-[11px] font-body text-warm-white/70 leading-snug">{voice.role}</p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function RemarkableVoices() {
-  const voices = [
-    { name: 'John Irick', year: '\u201965', quote: 'First African American graduate', bg: 'bg-navy' },
-    { name: 'Naomi Vega', year: '\u201969', quote: 'First female graduate', bg: 'bg-maroon' },
-    { name: 'Michael Gary', year: '\u201982', quote: 'First Director of Multicultural Affairs', bg: 'bg-navy-light' },
-    { name: 'Heather Willis Daly', year: '2024', quote: 'First female Head of School', bg: 'bg-maroon-dark' },
-    { name: 'Dr. Coretta McCarter', year: 'Today', quote: 'Dean of DEI', bg: 'bg-navy-dark' },
-    { name: 'VOICE', year: '1984', quote: 'Multicultural student leadership', bg: 'bg-maroon-light' },
-  ];
-
-  const [activeIdx, setActiveIdx] = useState(0);
-
   return (
     <section className="py-24 lg:py-32 bg-warm-white">
       <div className="max-w-7xl mx-auto px-6">
         <ScrollReveal>
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-16 gap-6">
-            <SectionHeading bold="Remarkable" rest="Voices" />
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setActiveIdx(Math.max(0, activeIdx - 1))}
-                className="w-12 h-12 rounded-full border border-navy/20 text-navy/60 hover:text-navy hover:border-navy transition-all flex items-center justify-center"
-                aria-label="Previous voice"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setActiveIdx(Math.min(voices.length - 1, activeIdx + 1))}
-                className="w-12 h-12 rounded-full border border-navy/20 text-navy/60 hover:text-navy hover:border-navy transition-all flex items-center justify-center"
-                aria-label="Next voice"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
+            <div className="max-w-2xl">
+              <SectionHeading bold="Remarkable" rest="Voices" />
+              <p className="mt-4 text-base text-slate font-body">
+                Six pivotal figures whose stories anchor the Pomfret DEI archive &mdash;
+                from the first African American graduate in 1965 to today&rsquo;s Dean of DEI.
+              </p>
             </div>
+            <Link
+              href="/humans-of-pomfret"
+              className="text-[11px] font-body font-bold tracking-[0.15em] uppercase text-maroon hover:text-maroon-dark inline-flex items-center gap-2 self-start lg:self-auto"
+            >
+              All Profiles
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
           </div>
         </ScrollReveal>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-5">
           {voices.map((voice, i) => (
             <ScrollReveal key={voice.name} delay={i * 0.08}>
-              <div className="group cursor-pointer">
-                <div className={`aspect-[3/4] ${voice.bg} rounded-sm overflow-hidden relative mb-4 hover:scale-[1.02] transition-transform`}>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <div className="text-xs text-warm-white/70 font-body">{voice.year}</div>
-                  </div>
-                </div>
-                <h4 className="font-display text-lg text-navy leading-tight mb-1">{voice.name}</h4>
-                <p className="text-xs text-slate font-body leading-snug">{voice.quote}</p>
-              </div>
+              <VoiceCard voice={voice} index={i} total={voices.length} />
             </ScrollReveal>
           ))}
         </div>
@@ -424,11 +645,8 @@ function LatestStories() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
           {stories.map((story, i) => (
             <ScrollReveal key={i} delay={i * 0.1}>
-              <article className="group cursor-pointer">
-                <div className="aspect-[16/10] bg-gradient-to-br from-navy/80 to-navy-dark rounded-sm mb-6 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                </div>
-                <div className="flex items-center gap-3 text-xs font-body text-slate/70 uppercase tracking-wider mb-3">
+              <article className="group cursor-pointer border-t border-mist pt-6">
+                <div className="flex items-center gap-3 text-xs font-body text-slate/70 uppercase tracking-wider mb-3 flex-wrap">
                   <span className="text-maroon font-semibold">{story.category}</span>
                   <span>&middot;</span>
                   <span>{story.author}</span>
@@ -451,57 +669,6 @@ function LatestStories() {
 }
 
 // =================================================================
-// SECTION 6: IMAGE GALLERY — Thumbnail grid
-// =================================================================
-function ImageGallery() {
-  const images = Array.from({ length: 8 }, (_, i) => ({
-    id: i,
-    ratio: i % 3 === 0 ? 'aspect-[4/5]' : i % 3 === 1 ? 'aspect-[4/3]' : 'aspect-square',
-    bg: [
-      'from-navy/70 to-navy-dark',
-      'from-maroon/70 to-maroon-dark',
-      'from-navy-light to-navy',
-      'from-maroon-dark to-navy-dark',
-    ][i % 4],
-  }));
-
-  return (
-    <section className="py-24 lg:py-32 bg-warm-white">
-      <div className="max-w-7xl mx-auto px-6">
-        <ScrollReveal>
-          <div className="text-center mb-16">
-            <SectionHeading bold="Through" rest="the Years" align="center" />
-            <p className="mt-4 text-sm text-slate font-body italic">
-              Click any image to enlarge
-            </p>
-          </div>
-        </ScrollReveal>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-          {images.map((img, i) => (
-            <ScrollReveal key={img.id} delay={i * 0.05}>
-              <button
-                className={`${img.ratio} w-full bg-gradient-to-br ${img.bg} rounded-sm overflow-hidden hover:opacity-80 transition-opacity relative group`}
-                aria-label={`View archival image ${img.id + 1}`}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/30" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="w-10 h-10 rounded-full bg-warm-white/20 backdrop-blur-sm flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-warm-white">
-                      <path d="M3 8H13M8 3V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-            </ScrollReveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// =================================================================
 // HOMEPAGE
 // =================================================================
 export default function Home() {
@@ -512,7 +679,6 @@ export default function Home() {
       <SignatureExhibits />
       <RemarkableVoices />
       <LatestStories />
-      <ImageGallery />
     </>
   );
 }
