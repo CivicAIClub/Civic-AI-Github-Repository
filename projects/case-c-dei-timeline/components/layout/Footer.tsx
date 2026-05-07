@@ -8,7 +8,7 @@ const footerSections = [
       { href: '/timeline', label: 'DEI Timeline', external: false },
       { href: '/humans-of-pomfret', label: 'Humans of Pomfret', external: false },
       { href: '/archive', label: 'Magazine Archive', external: false },
-      { href: '/tour', label: 'Campus Tour', external: false },
+      { href: '/tour', label: 'Campus Overview', external: false },
       { href: '/famous-figures', label: 'Schwartz Fellows', external: false },
     ],
   },

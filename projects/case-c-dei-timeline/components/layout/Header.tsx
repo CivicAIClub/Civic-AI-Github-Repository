@@ -30,7 +30,7 @@ const navItems: { href: string; label: string; children?: { href: string; label:
       { href: '/archive/mission-accomplished', label: 'Mission Accomplished (2003)' },
     ],
   },
-  { href: '/tour', label: 'Campus Tour' },
+  { href: '/tour', label: 'Campus Overview' },
   { href: '/famous-figures', label: 'Schwartz Fellows' },
   { href: '/ai-bias', label: 'AI & Bias' },
 ];

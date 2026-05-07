@@ -324,8 +324,39 @@ export default function TimelinePage() {
                 Explore the milestones, voices, and turning points that shaped diversity,
                 equity, and inclusion at Pomfret School — from 1890 to today.
               </p>
+              <div className="mt-8 max-w-3xl rounded-2xl border border-maroon/15 bg-warm-white/80 p-5 shadow-sm">
+                <div className="text-[11px] font-body font-bold tracking-[0.22em] uppercase text-maroon mb-4">
+                  Current Student Diversity Snapshot
+                </div>
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="rounded-xl bg-cream px-4 py-4 border border-mist">
+                    <div className="font-display text-4xl text-navy leading-none">350</div>
+                    <p className="mt-2 text-xs font-body font-semibold tracking-[0.12em] uppercase text-slate/70">
+                      Students
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-cream px-4 py-4 border border-mist">
+                    <div className="font-display text-4xl text-navy leading-none">25%</div>
+                    <p className="mt-2 text-xs font-body font-semibold tracking-[0.12em] uppercase text-slate/70">
+                      People of color
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-pomfret-navy px-4 py-4 text-warm-white">
+                    <div className="font-display text-4xl leading-none">22%</div>
+                    <p className="mt-2 text-xs font-body font-semibold tracking-[0.12em] uppercase text-warm-white/70">
+                      International
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-cream px-4 py-4 border border-mist">
+                    <div className="font-display text-4xl text-navy leading-none">29</div>
+                    <p className="mt-2 text-xs font-body font-semibold tracking-[0.12em] uppercase text-slate/70">
+                      Countries
+                    </p>
+                  </div>
+                </div>
+              </div>
               {useScrollDriven && (
-                <p className="hidden lg:flex items-center gap-2 text-sm text-slate/70 font-body">
+                <p className="hidden lg:flex items-center gap-2 text-sm text-slate/70 font-body mt-6">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="M8 3V13M8 13L4 9M8 13L12 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>

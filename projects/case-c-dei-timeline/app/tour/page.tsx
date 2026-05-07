@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import TourIndexView from './TourIndexView';
 
 export const metadata: Metadata = {
-  title: 'Campus Tour',
+  title: 'Campus Overview',
   description:
-    'QR-powered campus tour with six stops \u2014 each location tells a story of community, inclusion, and institutional evolution at Pomfret School.',
+    'A wide-angle campus overview of Pomfret School\u2019s 500-acre Hilltop, designed around aerial views, landscape change, and student privacy.',
   alternates: { canonical: '/tour' },
   openGraph: {
-    title: 'Campus Tour \u00b7 Pomfret Voices',
-    description: 'Scan, learn, connect. Six tour stops with bilingual audio narration.',
+    title: 'Campus Overview \u00b7 Pomfret Voices',
+    description: 'The Hilltop from above: campus scale, community, and then-and-now landscape change.',
     type: 'website',
   },
 };

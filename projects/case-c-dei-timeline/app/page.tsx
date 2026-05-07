@@ -19,7 +19,7 @@ const heroSlides = [
     id: 0,
     headline: 'A Living Archive of',
     accent: 'Every Voice',
-    subtitle: 'Exploring 130 years of diversity, equity, and inclusion at Pomfret School.',
+    subtitle: 'Exploring the people, programs, and VOICES that continue to shape equity and belonging at Pomfret School.',
     image: '/heads/heather-willis-daly.jpg',
     imagePosition: '50% 25%',
     caption: 'Heather Willis Daly · Pomfret\u2019s first female Head of School',
@@ -28,7 +28,7 @@ const heroSlides = [
     id: 1,
     headline: 'Every Story',
     accent: 'Matters Here',
-    subtitle: 'Since 1894, the voices that shape our community have shaped our mission.',
+    subtitle: 'Since 1894, Pomfret has grown from an all-boys school into a community shaped by student voice, coeducation, international perspective, and shared belonging.',
     image: '/heads/william-e-peck.png',
     // Peck is a full-body portrait with his face in the top ~18% of the frame.
     imagePosition: '50% 12%',
@@ -275,13 +275,26 @@ function MissionSection() {
           </div>
           <h2 className="font-display text-[clamp(1.75rem,3.5vw,2.75rem)] leading-[1.1] text-navy mb-6">
             <span className="font-bold">A school&apos;s truest measure</span>{' '}
-            <span className="font-normal text-pomfret-gray">is not the stories it tells about itself, but the voices it chooses to amplify.</span>
+            <span className="font-normal text-pomfret-gray">
+              is not the stories it tells about itself, but the{' '}
+              <span className="font-bold tracking-[0.04em] text-maroon">VOICES</span>{' '}
+              it chooses to amplify.
+            </span>
           </h2>
           <div className="w-12 h-0.5 bg-maroon mx-auto mb-6" />
+          <p className="text-sm text-slate/80 font-body leading-relaxed max-w-xl mx-auto mb-5">
+            <span className="font-semibold text-navy">VOICES</span> appears here with intention:
+            it points to Pomfret&apos;s VOICE program and to the student voices that continue to
+            shape the school.
+          </p>
           <p className="text-base text-slate font-body leading-relaxed max-w-2xl mx-auto">
-            Founded in 1894, Pomfret School has spent more than a century evolving its
-            commitment to an inclusive community. This archive preserves the milestones,
-            the voices, and the ongoing work of building a place where every student belongs.
+            Founded in 1894 as an all-boys school, Pomfret&apos;s history has widened across
+            generations: girls joined classrooms and boarding life, international students
+            expanded the school&apos;s perspective, and today&apos;s student body reflects a broader
+            range of racial, cultural, and lived experiences than ever before. With Heather
+            Willis Daly now serving as Pomfret&apos;s first female Head of School, this archive
+            traces the choices, students, and VOICES that continue to move the Hilltop toward
+            belonging.
           </p>
         </ScrollReveal>
       </div>
@@ -318,9 +331,9 @@ function SignatureExhibits() {
     {
       href: '/tour',
       category: 'Campus',
-      title: 'Campus Tour',
-      meta: 'Scan · Learn · Connect',
-      description: 'QR-powered audio guides unlocking the stories behind our buildings and monuments.',
+      title: 'Campus Overview',
+      meta: 'Aerial · Then / Now',
+      description: 'A wide-angle view of the Hilltop, showing campus scale and change without entering private spaces.',
     },
     {
       href: '/ai-bias',

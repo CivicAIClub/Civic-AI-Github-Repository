@@ -20,6 +20,8 @@ const nextConfig = {
       // YouTube thumbnails — for future embed previews
       { protocol: 'https', hostname: 'i.ytimg.com' },
       { protocol: 'https', hostname: 'img.youtube.com' },
+      // Admission.org image CDN — public Pomfret aerial/campus overview imagery
+      { protocol: 'https', hostname: 'cdn.prod.website-files.com' },
     ],
   },
 
@@ -64,7 +66,7 @@ const nextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://cdn.sanity.io https://resources.finalsite.net https://i.ytimg.com https://img.youtube.com",
+              "img-src 'self' data: blob: https://cdn.sanity.io https://resources.finalsite.net https://i.ytimg.com https://img.youtube.com https://cdn.prod.website-files.com",
               "media-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
               "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
               "connect-src 'self' https://cdn.sanity.io",
