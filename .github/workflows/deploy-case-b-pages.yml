@@ -38,7 +38,17 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
+      - name: Build
+        env:
+          # Vite reads VITE_* env vars at build time and inlines them into
+          # the bundle. Both come from repo secrets so the deployed JS has
+          # the right /exec URL and shared secret without anyone having to
+          # commit .env.local. The shared secret IS visible in the bundle
+          # — that's the documented model for this app, and the deployed
+          # URL is treated as semi-private.
+          VITE_APPS_SCRIPT_BASE_URL: ${{ secrets.VITE_APPS_SCRIPT_BASE_URL }}
+          VITE_APPS_SCRIPT_SHARED_SECRET: ${{ secrets.VITE_APPS_SCRIPT_SHARED_SECRET }}
+        run: npm run build
 
       # GitHub Pages serves only `/404.html` from the root of the publishing
       # source; deep links inside this case-b sub-app would otherwise refresh
