@@ -100,10 +100,12 @@ export function StudentResourcesSection({
       </div>
 
       <p className="muted student-resources-section__lede">
-        A shared Drive folder just for{" "}
-        {studentName?.trim() || studentEmail} and you. Drop sheet music,
-        recordings, or annotated PDFs here — the student has{" "}
-        <strong>editor</strong> access and can upload too.
+        A private Drive folder shared with{" "}
+        {studentName?.trim() || studentEmail}, you, and Dr. Burns. Drop sheet
+        music, recordings, or annotated PDFs here. The student has{" "}
+        <strong>editor</strong> access and can upload too. The folder is
+        created automatically the first time you open this section (or when
+        the student fills out the form).
       </p>
 
       <Body
@@ -156,7 +158,7 @@ function Body({
           role="status"
           aria-live="polite"
         >
-          New folder created — student now has editor access.
+          New folder created. Student now has editor access.
         </p>
       )}
 

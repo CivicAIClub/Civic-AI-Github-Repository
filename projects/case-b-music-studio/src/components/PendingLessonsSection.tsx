@@ -33,10 +33,12 @@ export function PendingLessonsSection({
         Pending lessons
       </h2>
       <p className="muted profile-updates-intro">
-        Rows in <strong>Lesson Schedule</strong> with no Calendar Event ID yet.
-        Click <strong>Preview &amp; schedule</strong> to review the invite,
-        then create it on the calendar — Google sends invites to the student
-        and Dr. Burns automatically.
+        Lessons you've added to the <strong>Lesson Schedule</strong> sheet
+        that haven't been put on the calendar yet. Click{" "}
+        <strong>Preview &amp; schedule</strong> to review who'll be invited
+        and the time. Confirm and Google sends invites to the student,
+        Dr. Burns, and you. Anything you change in this section auto-syncs
+        back to the Sheet.
       </p>
 
       <ul className="pending-list">
@@ -79,7 +81,7 @@ function PendingLessonItem({
             <span className="lesson-row__date-month">{tab.month}</span>
           </>
         ) : (
-          <span className="lesson-row__date-num">—</span>
+          <span className="lesson-row__date-num">?</span>
         )}
       </div>
 

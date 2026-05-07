@@ -5,7 +5,6 @@ import {
   EXTERNAL_LINK_ORDER,
   EXTERNAL_LINK_SHORT_LABEL,
 } from "../lib/externalLinks";
-import { CASE_B_GITHUB_PAGES_URL } from "../lib/publicSiteUrl";
 
 function navPillClassName({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-pill nav-pill--active" : "nav-pill";
@@ -69,18 +68,6 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
-      <footer className="app-footer" role="contentinfo">
-        <p className="app-footer__text">
-          <span className="app-footer__label">Case B — live on GitHub Pages</span>
-          <a
-            className="app-footer__link"
-            href={CASE_B_GITHUB_PAGES_URL}
-            title="Official GitHub Pages URL for this dashboard"
-          >
-            {CASE_B_GITHUB_PAGES_URL}
-          </a>
-        </p>
-      </footer>
     </div>
   );
 }

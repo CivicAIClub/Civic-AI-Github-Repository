@@ -90,8 +90,11 @@ export function ClassResourcesSection() {
           </h2>
           <p className="muted profile-updates-intro">
             Shared Drive folder visible to every enrolled student. Drop
-            handouts, recordings, or reference materials here — students
-            see them on this page after a one-click access sync.
+            handouts, recordings, or reference materials here. New students
+            are <strong>automatically</strong> granted viewer access when
+            they fill out the form. The "Re-sync access" button below is a
+            backfill / repair tool: you only need it if you added a student
+            manually or someone lost access.
           </p>
         </div>
         {listState.kind === "ready" && (
@@ -119,13 +122,14 @@ export function ClassResourcesSection() {
         </button>
         <button
           type="button"
-          className="button"
+          className="button button--ghost"
           onClick={onSync}
           disabled={syncState.kind === "syncing" || listState.kind !== "ready"}
+          title="Backfill viewer access for any roster student who's missing it."
         >
           {syncState.kind === "syncing"
             ? "Syncing…"
-            : "Sync student access"}
+            : "Re-sync student access"}
         </button>
       </div>
 
@@ -268,7 +272,7 @@ function SyncReportBlock({ state }: { state: SyncState }) {
           <ul className="class-resources-card__email-list">
             {errors.map((err) => (
               <li key={err.email}>
-                <code>{err.email}</code> — {err.message}
+                <code>{err.email}</code>: {err.message}
               </li>
             ))}
           </ul>

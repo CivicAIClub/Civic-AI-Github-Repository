@@ -84,8 +84,11 @@ export function RecapsPage() {
       <header className="page-header">
         <h1>Recaps</h1>
         <p className="page-header__lede">
-          Every saved lesson recap, grouped by student. Compose new
-          recaps from a student's profile under their past lesson rows.
+          A read-only archive of every recap you've saved, grouped by student
+          with the newest first. To <strong>write</strong> a recap, open a
+          student under <strong>Students</strong> and click{" "}
+          <strong>Write recap</strong> on a past lesson row. Use the filter
+          here to focus on one student.
         </p>
       </header>
 

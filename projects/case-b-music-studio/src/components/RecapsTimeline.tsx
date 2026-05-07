@@ -50,7 +50,7 @@ export function RecapsTimeline({
   const [showAll, setShowAll] = useState(false);
 
   if (lessons.length === 0) {
-    return <p className="muted profile-booked__line">—</p>;
+    return <p className="muted profile-booked__line">No lessons yet.</p>;
   }
 
   const visibleLessons =

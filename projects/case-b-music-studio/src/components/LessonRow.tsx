@@ -46,7 +46,7 @@ export function LessonRow({
             <span className="lesson-row__date-month">{tab.month}</span>
           </>
         ) : (
-          <span className="lesson-row__date-num">—</span>
+          <span className="lesson-row__date-num">?</span>
         )}
       </div>
 

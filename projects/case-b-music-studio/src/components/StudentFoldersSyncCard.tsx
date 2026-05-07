@@ -40,29 +40,31 @@ export function StudentFoldersSyncCard() {
 
   return (
     <section
-      className="card span-2 student-folders-sync-card"
+      className="card span-2 student-folders-sync-card admin-tool-card"
       aria-labelledby="student-folders-sync-h"
     >
-      <h2 id="student-folders-sync-h" className="card__title">
-        Student folders
+      <p className="admin-tool-card__eyebrow">Admin · Backfill</p>
+      <h2 id="student-folders-sync-h" className="card__title admin-tool-card__title">
+        Sync student folders
       </h2>
       <p className="muted profile-updates-intro">
-        Each student gets their own Drive folder with{" "}
-        <strong>editor</strong> access — auto-created the first time you
-        open their profile. Run a bulk sync here to pre-create all of
-        them in one click (handy before a new term starts).
+        Personal Drive folders are <strong>auto-created</strong> the moment a
+        student fills out the form. You usually don't need this button. It's
+        a backfill for two cases: students added <em>before</em> auto-onboarding
+        was turned on, or students added directly to the Sheet (no form
+        submission). Idempotent and safe to re-run.
       </p>
 
       <div className="student-folders-sync-card__actions">
         <button
           type="button"
-          className="button"
+          className="button button--ghost"
           onClick={onSync}
           disabled={state.kind === "syncing"}
         >
           {state.kind === "syncing"
             ? "Syncing…"
-            : "Sync all student folders"}
+            : "Run backfill sync"}
         </button>
       </div>
 
@@ -132,7 +134,7 @@ function SyncReportBlock({ state }: { state: SyncState }) {
           <ul className="class-resources-card__email-list">
             {errors.map((err) => (
               <li key={err.email}>
-                <code>{err.email}</code> — {err.message}
+                <code>{err.email}</code>: {err.message}
               </li>
             ))}
           </ul>

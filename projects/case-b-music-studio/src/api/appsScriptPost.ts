@@ -1,14 +1,18 @@
 /**
  * Apps Script POST client (write actions).
  *
- * GETs are public read-only and live in:
+ * Reads (roster, schedule) live in:
  *   src/api/appsScriptStudent.ts
  *   src/api/appsScriptSchedule.ts
  *
- * POSTs are gated by a shared secret stored in Script Properties on the
- * Apps Script side and in `.env.local` on this side
+ * POSTs are gated by a shared secret stored in Script Properties on
+ * the Apps Script side and in `.env.local` on this side
  * (`VITE_APPS_SCRIPT_SHARED_SECRET`). The secret is intentionally not
- * committed to git. See apps-script/Code.gs (file header → "Auth").
+ * committed to git.
+ *
+ * IMPORTANT: this secret is bundled into the deployed JS — anyone
+ * who can open the site in DevTools can read it. Treat the deployed
+ * URL as private (don't link it publicly).
  *
  * ──────────────────────────────────────────────────────────────────────
  * Why Content-Type: text/plain
@@ -19,7 +23,7 @@
  * fails before the handler runs. Sending the JSON body as `text/plain`
  * keeps the request "simple" — the browser skips the preflight, and the
  * Apps Script side reads the raw string at `e.postData.contents` and
- * `JSON.parse`s it. This is the standard workaround.
+ * `JSON.parse`s it.
  *
  * ──────────────────────────────────────────────────────────────────────
  * Response shape (every POST)
@@ -89,30 +93,89 @@ export async function postToAppsScript<TResult extends Record<string, unknown>>(
     ...rest,
   });
 
-  let res: Response;
-  try {
-    res = await fetch(APPS_SCRIPT_BASE_URL, {
-      method: "POST",
-      // text/plain keeps this a "simple" CORS request — see file header.
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body,
-      signal: init?.signal,
-      redirect: "follow",
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") throw err;
-    throw new Error(
-      `Could not reach Apps Script at ${APPS_SCRIPT_BASE_URL}. Network error or web app URL is wrong.`
-    );
-  }
+  const result = await fetchWithRetry(body, init?.signal);
+  return processResponse<TResult>(result.text, result.status);
+}
 
-  const text = await res.text();
+/**
+ * fetch wrapper that retries once on a transient failure. Apps Script
+ * occasionally returns 502/503/504 from a Google-side blip; a single
+ * retry covers the vast majority of those without making the user wait
+ * on a manual "Try again". The retry is skipped when the call is
+ * aborted (the user explicitly cancelled).
+ */
+async function fetchWithRetry(
+  body: string,
+  signal: AbortSignal | undefined
+): Promise<{ text: string; status: number }> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    let res: Response;
+    try {
+      res = await fetch(APPS_SCRIPT_BASE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body,
+        signal,
+        redirect: "follow",
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      lastError = err;
+      if (attempt === 0) {
+        await wait(400, signal);
+        continue;
+      }
+      throw new Error(
+        `Could not reach Apps Script at ${APPS_SCRIPT_BASE_URL}. Network error or web app URL is wrong.`
+      );
+    }
+
+    if (
+      attempt === 0 &&
+      (res.status === 502 || res.status === 503 || res.status === 504)
+    ) {
+      await wait(400, signal);
+      continue;
+    }
+
+    const text = await res.text();
+    return { text, status: res.status };
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Apps Script request failed.");
+}
+
+async function wait(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const id = window.setTimeout(resolve, ms);
+    if (signal) {
+      signal.addEventListener(
+        "abort",
+        () => {
+          window.clearTimeout(id);
+          reject(new DOMException("Aborted", "AbortError"));
+        },
+        { once: true }
+      );
+    }
+  });
+}
+
+function processResponse<TResult extends Record<string, unknown>>(
+  text: string,
+  status: number
+): TResult {
   let json: unknown;
   try {
     json = JSON.parse(text) as unknown;
   } catch {
     throw new Error(
-      `Apps Script returned a non-JSON response (HTTP ${res.status}). Did you redeploy after changing Code.gs?`
+      `Apps Script returned a non-JSON response (HTTP ${status}). Did you redeploy after changing Code.gs?`
     );
   }
 
@@ -124,12 +187,12 @@ export async function postToAppsScript<TResult extends Record<string, unknown>>(
     const message =
       typeof json.error === "string" && json.error.trim()
         ? json.error
-        : `Apps Script reported failure (HTTP ${res.status}).`;
+        : `Apps Script reported failure (HTTP ${status}).`;
     throw new Error(message);
   }
 
-  if (!res.ok) {
-    throw new Error(`Apps Script request failed (HTTP ${res.status}).`);
+  if (status < 200 || status >= 300) {
+    throw new Error(`Apps Script request failed (HTTP ${status}).`);
   }
 
   return json as TResult;
@@ -147,13 +210,6 @@ export type PingResult = {
   spreadsheet: string;
 };
 
-/**
- * Smoke-test the POST round trip. Useful in the browser console:
- *
- *     import("./src/api/appsScriptPost").then(m => m.pingAppsScript().then(console.log))
- *
- * Returns the parsed success payload; throws on any failure.
- */
 export async function pingAppsScript(
   message?: string,
   init?: AppsScriptPostInit

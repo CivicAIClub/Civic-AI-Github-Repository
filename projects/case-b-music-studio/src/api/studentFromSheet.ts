@@ -6,7 +6,7 @@ import type { Student } from "../types";
 
 function dash(s: string): string {
   const t = s.trim();
-  return t.length ? t : "—";
+  return t.length ? t : "-";
 }
 
 /**
@@ -33,6 +33,6 @@ export function sheetProfileToStudent(profile: SheetStudentProfile): Student | n
     availabilityBlocks: parseAvailabilityBlocks(profile.availabilityRaw),
     theory: profile.theory.trim() || undefined,
     contactEmail: profile.email.trim() || undefined,
-    teacherNotes: "—",
+    teacherNotes: "-",
   };
 }
