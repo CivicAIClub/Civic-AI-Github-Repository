@@ -97,7 +97,7 @@
  *           → { ok, recaps: [...] }
  *
  *  Future POST actions (Phases 6+) will follow the same shape:
- *    { "action": "<name>", "secret":"…", ...payload }
+ *    { "action": "<name>", "secret": "…", ...payload }
  *
  * The frontend clients live in:
  *   src/api/appsScriptStudent.ts        (GET, roster + single student)
@@ -241,6 +241,34 @@ var STUDENT_RESOURCES_EXTRA_EDITORS = [
   "rburns@pomfret.org",
   "caydenauyang@gmail.com",
   "cauyang.27@pomfret.org"
+];
+
+/**
+ * Phase 5 — Teacher recaps. Tab name + canonical header order. Auto-
+ * created on first save; never auto-deleted. Mirrors the
+ * "Lesson Schedule" composite key (studentEmail, lessonDate,
+ * startTime) so a recap binds permanently to the lesson instance it
+ * was written for, even if the lesson is later rescheduled.
+ */
+var LESSON_RECAPS_SHEET_NAME = "Lesson Recaps";
+
+/**
+ * Headers in the order they should appear when the tab is auto-
+ * created. The script reads by header name, so re-ordering the
+ * columns by hand later is safe; the script will still find them.
+ * Adding new columns to the right (e.g. for a future "delivered
+ * to student" timestamp) is also safe.
+ */
+var LESSON_RECAPS_HEADERS = [
+  "Student Email",
+  "Student Name",
+  "Lesson Date",
+  "Start Time",
+  "Greeting",
+  "Today We",
+  "Homework",
+  "Next Class",
+  "Updated At"
 ];
 
 /**
