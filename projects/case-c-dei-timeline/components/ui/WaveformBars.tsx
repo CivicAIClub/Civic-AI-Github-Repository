@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 interface WaveformBarsProps {
   count?: number;
@@ -22,7 +22,7 @@ export default function WaveformBars({
       aria-label={active ? 'Audio playing' : 'Audio waveform'}
     >
       {Array.from({ length: count }).map((_, i) => (
-        <motion.div
+        <m.div
           key={i}
           className={`w-1 rounded-full ${color}`}
           animate={

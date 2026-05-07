@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { m, useInView, useReducedMotion } from 'framer-motion';
 
 interface ScrollRevealProps {
   children: React.ReactNode;
@@ -22,6 +22,7 @@ export default function ScrollReveal({
 }: ScrollRevealProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once, margin: '-80px' });
+  const prefersReducedMotion = useReducedMotion();
 
   const directionMap = {
     up: { y: 40, x: 0 },
@@ -33,8 +34,18 @@ export default function ScrollReveal({
 
   const offset = directionMap[direction];
 
+  // Respect the user's OS-level "reduce motion" preference:
+  // skip the translation/scale animation and render content visibly from first paint.
+  if (prefersReducedMotion) {
+    return (
+      <div ref={ref} className={className}>
+        {children}
+      </div>
+    );
+  }
+
   return (
-    <motion.div
+    <m.div
       ref={ref}
       initial={{ opacity: 0, ...offset }}
       animate={isInView ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, ...offset }}
@@ -42,6 +53,6 @@ export default function ScrollReveal({
       className={className}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }

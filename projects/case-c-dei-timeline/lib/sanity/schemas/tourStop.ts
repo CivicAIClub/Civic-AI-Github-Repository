@@ -93,12 +93,6 @@ const tourStop = {
       of: [{ type: 'reference', to: [{ type: 'timelineEvent' }] }],
     },
     {
-      name: 'relatedChapelVoices',
-      title: 'Related Chapel Voices',
-      type: 'array',
-      of: [{ type: 'reference', to: [{ type: 'chapelSpeaker' }] }],
-    },
-    {
       name: 'relatedProfiles',
       title: 'Related Profiles',
       type: 'array',

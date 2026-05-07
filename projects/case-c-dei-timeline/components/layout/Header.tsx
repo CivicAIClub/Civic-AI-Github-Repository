@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 
 // Matches pomfret.org's main nav structure — single-level dropdowns
 const navItems: { href: string; label: string; children?: { href: string; label: string }[] }[] = [
@@ -30,7 +30,7 @@ const navItems: { href: string; label: string; children?: { href: string; label:
       { href: '/archive/mission-accomplished', label: 'Mission Accomplished (2003)' },
     ],
   },
-  { href: '/tour', label: 'Campus Tour' },
+  { href: '/tour', label: 'Campus Overview' },
   { href: '/famous-figures', label: 'Schwartz Fellows' },
   { href: '/ai-bias', label: 'AI & Bias' },
 ];
@@ -123,7 +123,7 @@ export default function Header() {
                   </Link>
                   <AnimatePresence>
                     {item.children && openDropdown === item.href && (
-                      <motion.div
+                      <m.div
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -8 }}
@@ -139,7 +139,7 @@ export default function Header() {
                             {child.label}
                           </Link>
                         ))}
-                      </motion.div>
+                      </m.div>
                     )}
                   </AnimatePresence>
                 </div>
@@ -163,7 +163,7 @@ export default function Header() {
 
               {/* Mobile Menu Button */}
               <button
-                className="lg:hidden p-2 rounded-lg hover:bg-cream transition-colors"
+                className="lg:hidden min-w-[44px] min-h-[44px] p-2.5 rounded-lg hover:bg-cream transition-colors flex items-center justify-center"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-expanded={mobileOpen}
                 aria-controls="mobile-menu"
@@ -195,7 +195,7 @@ export default function Header() {
       {/* Mobile Menu — pomfret.org-style red full-panel overlay */}
       <AnimatePresence>
         {mobileOpen && (
-          <motion.nav
+          <m.nav
             id="mobile-menu"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
@@ -251,7 +251,7 @@ export default function Header() {
                 </Link>
               </div>
             </div>
-          </motion.nav>
+          </m.nav>
         )}
       </AnimatePresence>
     </header>

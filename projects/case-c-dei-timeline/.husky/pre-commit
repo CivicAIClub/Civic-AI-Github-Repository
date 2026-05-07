@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# Pomfret-DEI pre-commit hook.
+#
+# The git repo lives one level up from this package (in `dei/`), so git hooks
+# execute from the repo root. Jump into the project folder before running
+# lint-staged so it can find package.json, node_modules, and eslint config.
+
+# This file lives at <repo-root>/pomfret-dei/.husky/pre-commit
+cd "$(dirname "$0")/.." || exit 1
+
+npx --no-install lint-staged
