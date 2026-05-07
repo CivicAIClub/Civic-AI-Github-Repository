@@ -99,7 +99,7 @@ export function formatLessonTimeRangeForDisplay(
 /** Lesson block only (no raw sheet time strings in UI). */
 export function formatLessonBlockDisplay(lesson: ScheduledLesson): string {
   const block = lesson.lessonBlock.trim();
-  return block.length ? block : "—";
+  return block.length ? block : "-";
 }
 
 /**
@@ -267,5 +267,5 @@ export function formatLessonBlockOrTime(lesson: ScheduledLesson): string {
   if (block) return block;
   const range = formatLessonTimeRangeForDisplay(lesson);
   if (range) return range;
-  return "—";
+  return "-";
 }

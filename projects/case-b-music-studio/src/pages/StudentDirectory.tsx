@@ -76,7 +76,7 @@ function writeStudentNotesLocal(studentId: string, value: string): void {
 
 function displayField(s: string | undefined): string {
   const t = (s ?? "").trim();
-  return t.length ? t : "—";
+  return t.length ? t : "-";
 }
 
 function readStoredTeacherNotes(studentId: string, fallback: string): string {
@@ -96,7 +96,7 @@ function readStoredTeacherNotes(studentId: string, fallback: string): string {
   } catch {
     /* private mode */
   }
-  return fallback === "—" ? "" : fallback;
+  return fallback === "-" ? "" : fallback;
 }
 
 
@@ -376,7 +376,7 @@ function StudentDetailPanel({
             <dt>Preferred lesson availability</dt>
             <dd>
               {student.availabilityBlocks.length === 0 ? (
-                "—"
+                "-"
               ) : (
                 <ul className="availability-badges" aria-label="Preferred lesson availability">
                   {student.availabilityBlocks.map((block, i) => (
@@ -396,7 +396,7 @@ function StudentDetailPanel({
         <div className="profile-booked">
           <h4 className="profile-booked__heading">Booked lessons</h4>
           <p className="muted profile-booked__source">
-            From the <strong>Lesson Schedule</strong> sheet (actual lessons —
+            From the <strong>Lesson Schedule</strong> sheet (actual lessons,
             not form preferences).
           </p>
           {(scheduleFetchState.status === "loading" ||
@@ -428,12 +428,12 @@ function StudentDetailPanel({
                   />
                 </div>
               ) : (
-                <p className="muted profile-booked__line">—</p>
+                <p className="muted profile-booked__line">None scheduled.</p>
               )}
 
               <p className="profile-booked__sub eyebrow">Upcoming</p>
               {schedulePartition.upcomingLessons.length === 0 ? (
-                <p className="muted profile-booked__line">—</p>
+                <p className="muted profile-booked__line">None scheduled.</p>
               ) : (
                 <div className="lesson-rows">
                   {schedulePartition.upcomingLessons.map((lesson, i) => (
@@ -567,13 +567,13 @@ export function StudentDirectory() {
 
   const instruments = useMemo(() => {
     return [...new Set(students.map((s) => s.instrument))]
-      .filter((v) => v && v !== "—")
+      .filter((v) => v && v !== "-")
       .sort();
   }, [students]);
 
   const levels = useMemo(() => {
     return [...new Set(students.map((s) => s.currentLevel))]
-      .filter((v) => v && v !== "—")
+      .filter((v) => v && v !== "-")
       .sort();
   }, [students]);
 
@@ -752,8 +752,10 @@ export function StudentDirectory() {
       <header className="page-header">
         <h1>Students</h1>
         <p className="page-header__lede">
-          Choose a student to view their profile here — no separate page. Data
-          comes from your Google Sheet via Apps Script.
+          Pick a student to open their full profile: instrument, current
+          songs, lesson history, recaps, and personal Drive folder all in one
+          place. Use the filters below to narrow the list, or just scroll.
+          Roster comes straight from your Google Sheet.
         </p>
       </header>
 

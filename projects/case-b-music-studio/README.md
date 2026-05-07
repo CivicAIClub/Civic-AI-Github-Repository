@@ -40,36 +40,59 @@ npm run preview   # optional local preview of the build
 
 **Data:** The app loads **students and schedules from your Google Apps Script** (see API client comments). Mock data is not used for the live roster.
 
-### Shared secret (POST endpoints)
+### Auth (Google Sign-In + email allowlist)
 
-Phase 1+ adds write actions to the Apps Script web app (calendar events, recaps, Drive folders). These are gated by a shared secret that must match in two places:
+Every POST is gated by Google Sign-In. The flow:
 
-1. **Apps Script side:** Project Settings → Script Properties → Add property
-   - Property: `SHARED_SECRET`
-   - Value: a random ≥32-char string
-2. **Frontend side:** `projects/case-b-music-studio/.env.local`
-   - `VITE_APPS_SCRIPT_SHARED_SECRET=<same value>`
+1. The frontend renders a "Sign in with Google" screen on first visit.
+2. Google returns an **ID token** (a signed JWT) for the signed-in user.
+3. The frontend sends that token in every POST body.
+4. Apps Script verifies the token with Google's `tokeninfo` endpoint and checks the verified email against `ALLOWED_USER_EMAILS` in `Code.gs`. Only listed accounts are allowed.
 
-`.env.local` is gitignored at the repo root and never committed. Generate a fresh value with:
+#### One-time OAuth client ID setup
 
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+1. Go to https://console.cloud.google.com → APIs & Services → Credentials.
+2. **Create Credentials → OAuth client ID → Web application.**
+3. Authorized JavaScript origins:
+   - `http://localhost:5173` (dev server)
+   - `https://civicaiclub.github.io` (deployed site, adjust if hosting elsewhere)
+4. No redirect URI needed — we use the implicit ID-token flow.
+5. Copy the resulting client ID into:
+   - **Frontend:** `.env.local` → `VITE_GOOGLE_OAUTH_CLIENT_ID=<your-id>.apps.googleusercontent.com`
+   - **Apps Script:** Project Settings → Script Properties → `OAUTH_CLIENT_ID = <same value>`
 
-After changing `apps-script/Code.gs`, redeploy via Apps Script editor → Deploy → Manage deployments → ✏️ → New version. The `/exec` URL stays the same; only the served code changes.
+The OAuth client ID is bundled into the JS — that's expected and safe; OAuth client IDs are public by design. Security comes from the email allowlist on the Apps Script side rejecting tokens issued for any account that isn't in `ALLOWED_USER_EMAILS`.
 
-> **Note (security TODO):** the shared-secret model is fine for development and unlinked previews. Migrate to Google Sign-In ("Execute as user accessing the web app" + allowlist) before publishing the deployed site anywhere indexable. See the comment block in `apps-script/Code.gs`.
+#### One-time `/exec` URL setup
+
+1. Apps Script editor → **Deploy → New deployment** (or Manage deployments → New version).
+   - Type: Web app
+   - Execute as: Me (Mr. O'Neal in production; calendar invites use his calendar)
+   - Who has access: Anyone
+2. Copy the `/exec` URL into `.env.local` → `VITE_APPS_SCRIPT_BASE_URL=<the /exec URL>`.
+
+After any change to `apps-script/Code.gs`, **redeploy a new version** (Manage deployments → ✏️ → New version) so the live URL serves the new code. The `/exec` URL itself stays the same.
+
+#### Adding a new admin to the allowlist
+
+Edit `ALLOWED_USER_EMAILS` in `apps-script/Code.gs`, save, redeploy a new version. No frontend change needed.
+
+#### Sheet formatting (one-time)
+
+After updating Code.gs in the editor, select `setupSheetFormatting` from the function dropdown and click ▶ Run. This styles every tab (Form Responses 1, Lesson Schedule, Lesson Recaps, all per-student tabs) with the Pomfret palette and applies warning-only protection to the auto-managed `Status` and `Calendar Event ID` columns. Idempotent — safe to re-run.
 
 ### Phase 2 — Calendar event creation
 
 The Dashboard now shows a **Pending lessons** card for any row in the `Lesson Schedule` tab whose Status is blank (or `Draft`) **and** has no Calendar Event ID. Each row gets a **Preview & schedule** button that opens a modal showing the proposed event (title, time, attendees, description, target calendar). Confirming creates the event on the teacher's primary Google Calendar via `CalendarApp` and sends invites to:
 
 - the student's email (from the row),
-- everyone listed in `ALWAYS_INVITE_EMAILS` (currently the placeholder Dr. Burns address — see `apps-script/Code.gs`).
+- everyone listed in `ALWAYS_INVITE_EMAILS` in `apps-script/Code.gs` (Mr. O'Neal, Dr. Burns, Cayden's two emails).
+
+The teacher can add or remove attendees inline in the preview modal before confirming — at least one attendee is required.
 
 The Apps Script side writes the resulting event ID into a new `Calendar Event ID` column on the sheet (auto-added on first use) and flips Status to `Scheduled`, which moves the row out of Pending and into Upcoming on the next refresh.
 
-**No additional setup required** beyond the shared-secret config above and a redeploy of `apps-script/Code.gs`. Three new POST actions are exposed:
+**No additional setup required** beyond the auth config above and a redeploy of `apps-script/Code.gs`. Three new POST actions are exposed:
 
 | Action | Body fields | Effect |
 |---|---|---|

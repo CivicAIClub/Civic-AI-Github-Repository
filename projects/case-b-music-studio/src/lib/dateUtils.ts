@@ -23,7 +23,7 @@ export function parseSheetDate(raw: string): Date | null {
 
 export function formatLessonDateLong(raw: string): string {
   const d = parseSheetDate(raw);
-  if (!d) return raw.trim() || "—";
+  if (!d) return raw.trim() || "-";
   return d.toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
@@ -34,7 +34,7 @@ export function formatLessonDateLong(raw: string): string {
 
 export function formatLessonDateShort(raw: string): string {
   const d = parseSheetDate(raw);
-  if (!d) return "—";
+  if (!d) return "-";
   return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -44,7 +44,7 @@ export function formatLessonDateShort(raw: string): string {
 
 export function formatTimestampLong(raw: string): string {
   const d = parseSheetDate(raw);
-  if (!d) return raw.trim() || "—";
+  if (!d) return raw.trim() || "-";
   return d.toLocaleString(undefined, {
     weekday: "short",
     month: "short",

@@ -1748,7 +1748,13 @@ a:hover {
   margin: 0;
 }
 
-.modal-card__attendees {
+.attendees-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.attendees-field__list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1757,12 +1763,92 @@ a:hover {
   gap: 0.4rem;
 }
 
-.modal-card__attendees li {
-  padding: 0.2rem 0.55rem;
+.attendees-field__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.6rem;
   font-size: 0.85rem;
   background: var(--accent-soft);
   color: var(--accent-hover);
   border-radius: var(--radius-pill);
+  border: 1px solid var(--accent-border-subtle);
+}
+
+.attendees-field__email {
+  line-height: 1.2;
+}
+
+.attendees-field__remove {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--accent-hover);
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.attendees-field__remove:hover:not(:disabled) {
+  background: rgba(122, 20, 47, 0.18);
+  color: var(--accent);
+}
+
+.attendees-field__remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.attendees-field__add {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.attendees-field__input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.attendees-field__input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.attendees-field__add-btn {
+  flex: 0 0 auto;
+}
+
+.attendees-field__error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--status-danger);
+}
+
+.attendees-field__hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .modal-card__description {
@@ -2082,6 +2168,27 @@ a:hover {
   border-color: var(--accent-border-subtle);
 }
 
+/* Admin / backfill cards — visually quieter than primary cards so they
+   read as "occasional tools" instead of part of the daily flow. */
+.admin-tool-card {
+  background: var(--surface-subtle);
+  box-shadow: none;
+  border: 1px dashed var(--border-strong);
+}
+
+.admin-tool-card__eyebrow {
+  margin: 0 0 var(--space-1);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-tool-card__title {
+  font-size: 1.05rem;
+}
+
 .student-folders-sync-card__actions {
   display: flex;
   flex-wrap: wrap;
@@ -2118,6 +2225,23 @@ a:hover {
   margin: 0;
   font-size: 0.78rem;
   letter-spacing: 0.06em;
+}
+
+/* Top row: lesson date eyebrow on the left, "Copy" button on the right.
+   Both stay visible whether the recap header text is present or not. */
+.lesson-recap__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+.lesson-recap__copy {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.7rem;
+  margin-left: auto;
 }
 
 .lesson-recap__greeting {

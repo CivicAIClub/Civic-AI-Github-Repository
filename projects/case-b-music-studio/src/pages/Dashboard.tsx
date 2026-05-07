@@ -159,7 +159,10 @@ export function Dashboard() {
       <header className="page-header">
         <h1>Dashboard</h1>
         <p className="page-header__lede">
-          Quick overview for lessons — roster comes from your Google Sheet.
+          Your at-a-glance overview. Search a student, scan recent profile
+          changes, schedule upcoming lessons, and share materials. Everything
+          on this site is powered by your Google Sheet. Edit a row there and
+          a refresh here picks it up.
         </p>
       </header>
 
@@ -167,7 +170,7 @@ export function Dashboard() {
         <section className="card card--stat dashboard-hero">
           <span className="dashboard-hero__eyebrow">Total students</span>
           <p className="dashboard-hero__value">
-            {loadError ? "—" : students.length}
+            {loadError ? "?" : students.length}
           </p>
           <p className="muted dashboard-hero__caption">
             {loadError ? loadError : "Loaded live from your Google Sheet"}
@@ -176,6 +179,10 @@ export function Dashboard() {
 
         <section className="card">
           <h2 className="card__title">Find a student</h2>
+          <p className="muted profile-updates-intro">
+            Type any part of a name or email. Click a result to jump straight
+            into their full profile.
+          </p>
           <label className="label" htmlFor="dash-search">
             Search by name or email
           </label>
@@ -262,7 +269,7 @@ export function Dashboard() {
                             <span className="strong">New on roster</span>
                             <span className="muted">
                               {" "}
-                              — {item.profile.name || item.profile.email}
+                              · {item.profile.name || item.profile.email}
                             </span>
                           </Link>
                         </p>

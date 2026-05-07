@@ -90,14 +90,24 @@ export async function previewCalendarEvent(
  * Creates the calendar event, sends invites, writes the Event ID back
  * to the sheet row. Idempotent: returns `alreadyScheduled: true` plus
  * the existing event ID without creating a duplicate.
+ *
+ * Pass `attendees` to override the auto-built invitee list (typically
+ * from the modal where the teacher added/removed attendees inline).
+ * The backend enforces "at least one attendee" — passing `[]` will
+ * surface as an `ok:false` error rather than silently falling back.
  */
 export async function createCalendarEvent(
   key: LessonRowKey,
+  options?: { attendees?: string[] },
   init?: AppsScriptPostInit
 ): Promise<{ calendarEventId: string; alreadyScheduled: boolean; eventLink: string | null }> {
+  const payload: Record<string, unknown> = keyAsPayload(key);
+  if (options?.attendees) {
+    payload.attendees = options.attendees;
+  }
   const result = await postToAppsScript<CreateResponse>(
     "create-event",
-    keyAsPayload(key),
+    payload,
     init
   );
   return {

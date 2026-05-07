@@ -391,7 +391,7 @@ function ModalBody({
           rows={2}
           value={fields.greeting}
           onChange={(e) => onChange("greeting", e.target.value)}
-          placeholder="excellent lesson — ventured into &ldquo;Meaning of You&rdquo;"
+          placeholder="excellent lesson, ventured into &ldquo;Meaning of You&rdquo;"
           disabled={isSaving}
         />
       </label>

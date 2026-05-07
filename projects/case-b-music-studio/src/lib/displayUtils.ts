@@ -13,7 +13,7 @@ export function studentInitials(name: string, fallback: string = ""): string {
     return tokens.map((t) => t[0]!.toUpperCase()).join("");
   }
   const local = (fallback.split("@")[0] ?? "").trim();
-  if (local.length === 0) return "—";
+  if (local.length === 0) return "?";
   if (local.length === 1) return local[0]!.toUpperCase();
   return (local[0]! + local[1]!).toUpperCase();
 }

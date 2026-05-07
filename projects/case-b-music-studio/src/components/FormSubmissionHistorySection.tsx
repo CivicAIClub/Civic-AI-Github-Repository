@@ -14,7 +14,7 @@ function clipText(s: string, max = 200): string {
 
 function formatSubmissionWhen(p: SheetStudentProfile): string {
   const raw = p.lastUpdated.trim() || p.date.trim();
-  if (!raw) return "—";
+  if (!raw) return "(no date)";
   return formatTimestampLong(raw);
 }
 

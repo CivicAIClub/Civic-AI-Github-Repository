@@ -30,8 +30,12 @@
  *  GET  ?action=schedule-list        → { rows: [...] }      all booked lessons
  *  GET  ?action=schedule&email=…     → { rows: [...] }      one student's lessons
  *
- *  POST body (Content-Type: text/plain — see CORS note below):
- *    {"action":"ping","secret":"…"}  → { ok: true, pong: true, ts: <ms> }
+ *  POST body (Content-Type: text/plain — see CORS note below). Every
+ *  POST must include a "secret" field whose value matches the
+ *  SHARED_SECRET stored in Script Properties (Project Settings →
+ *  Script Properties). Body shapes below show only the
+ *  action-specific fields (secret is implicit on every request):
+ *    {"action":"ping","secret":"…"} → { ok: true, pong: true, ts: <ms> }
  *
  *    Phase 2 — Calendar event creation. All three actions identify the
  *    target lesson row by composite key { studentEmail, lessonDate,
@@ -93,7 +97,7 @@
  *           → { ok, recaps: [...] }
  *
  *  Future POST actions (Phases 6+) will follow the same shape:
- *    { "action": "<name>", "secret": "…", ...payload }
+ *    { "action": "<name>", "secret":"…", ...payload }
  *
  * The frontend clients live in:
  *   src/api/appsScriptStudent.ts        (GET, roster + single student)
@@ -101,18 +105,20 @@
  *   src/api/appsScriptPost.ts           (POST, write actions — Phase 1+)
  *
  * ───────────────────────────────────────────────────────────────────────
- * Auth (shared secret, v1)
+ * Auth (shared secret)
  * ───────────────────────────────────────────────────────────────────────
  *  Every POST must include a "secret" field whose value matches the
- *  SHARED_SECRET stored in Script Properties (Project Settings → Script
- *  Properties → Add property: SHARED_SECRET = <random 64-char hex>).
- *  The secret is NEVER committed to git: Code.gs reads it at runtime,
- *  the frontend reads it from .env.local (VITE_APPS_SCRIPT_SHARED_SECRET).
+ *  SHARED_SECRET stored in Script Properties (Project Settings →
+ *  Script Properties → Add property: SHARED_SECRET = <random hex>).
+ *  The frontend reads it from .env.local (VITE_APPS_SCRIPT_SHARED_SECRET).
  *
- *  TODO(security): Migrate to Google Sign-In ("Execute as user accessing
- *  the web app" + allowlist) before linking the deployed site publicly.
- *  A leaked shared secret here would let anyone create calendar events
- *  on the teacher's calendar.
+ *  IMPORTANT: this secret IS bundled into the JS the browser
+ *  downloads — anyone who can open the deployed site in DevTools can
+ *  read it. Treat the deployed URL as private (don't link it
+ *  publicly, don't share with people you wouldn't trust with the
+ *  backend). For a single-teacher tool this is acceptable; if the
+ *  site ever needs to be linked publicly, swap to a server-side
+ *  proxy that holds the secret.
  *
  * ───────────────────────────────────────────────────────────────────────
  * CORS note (why POSTs use Content-Type: text/plain)
@@ -163,14 +169,19 @@ var LESSON_SCHEDULE_SHEET_NAME = "Lesson Schedule";
 var CALENDAR_EVENT_ID_COLUMN = "Calendar Event ID";
 
 /**
- * Always invited to every auto-created lesson event. Use the teacher's
- * own email (the script owner) is implicit because they own the
- * calendar; this list is for additional always-on guests.
- *
- * TODO(launch): replace caydenauyang@gmail.com with Dr. Burns' real
- * email before linking the deployed site publicly.
+ * Always invited to every auto-created lesson event. Mr. O'Neal owns
+ * the calendar (the deployer of the web app), so he's already on every
+ * event as the organizer — but he's listed here too so the dashboard's
+ * "Attendees" preview shows him explicitly. Cayden's two emails are
+ * here for ongoing maintenance visibility, and Dr. Burns is the
+ * always-CC'd music department contact.
  */
-var ALWAYS_INVITE_EMAILS = ["caydenauyang@gmail.com"];
+var ALWAYS_INVITE_EMAILS = [
+  "roneal@pomfret.org",
+  "rburns@pomfret.org",
+  "caydenauyang@gmail.com",
+  "cauyang.27@pomfret.org"
+];
 
 /**
  * Phase 3 — Class Resources. Property key under which the Drive folder
@@ -188,12 +199,15 @@ var CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY = "CLASS_RESOURCES_FOLDER_ID";
 
 /**
  * Additional emails (beyond the enrolled-student roster) that should
- * always have viewer access on the Class Resources folder. Useful for
- * Dr. Burns / a co-teacher / a parent rep. The script owner already has
- * full access because they own the folder, so they don't need to be
- * listed here.
+ * always have viewer access on the Class Resources folder. Mr. O'Neal
+ * owns the folder so he doesn't need to be listed. This list is the
+ * canonical "music department admins + dev maintenance" set.
  */
-var CLASS_RESOURCES_EXTRA_VIEWERS = [];
+var CLASS_RESOURCES_EXTRA_VIEWERS = [
+  "rburns@pomfret.org",
+  "caydenauyang@gmail.com",
+  "cauyang.27@pomfret.org"
+];
 
 /**
  * Phase 4 — Student Resources. Property key under which the parent
@@ -218,12 +232,16 @@ var STUDENT_RESOURCES_PARENT_FOLDER_ID_PROPERTY_KEY = "STUDENT_RESOURCES_PARENT_
 var STUDENT_FOLDER_PROPERTY_PREFIX = "STUDENT_FOLDER:";
 
 /**
- * Always invited as editors on every per-student folder. Useful for
- * Dr. Burns / a co-teacher who should be able to drop annotated PDFs
- * into any student's folder. Empty by default — the student is the
- * only non-owner editor, with the script owner implicitly as owner.
+ * Always invited as editors on every per-student folder. Dr. Burns
+ * (music dept) needs to drop annotated PDFs into any student's folder;
+ * Cayden's two emails are for ongoing dev maintenance. Mr. O'Neal owns
+ * the parent so he doesn't need to be listed.
  */
-var STUDENT_RESOURCES_EXTRA_EDITORS = [];
+var STUDENT_RESOURCES_EXTRA_EDITORS = [
+  "rburns@pomfret.org",
+  "caydenauyang@gmail.com",
+  "cauyang.27@pomfret.org"
+];
 
 /**
  * Phase 5 — Teacher recaps. Tab name + canonical header order. Auto-
@@ -521,9 +539,6 @@ function isValidSecret(candidate) {
   var expected = getSharedSecret();
   if (!expected) return false;
   if (candidate.length !== expected.length) return false;
-  // Apps Script doesn't ship a constant-time comparator, but mismatching
-  // the length first eliminates the easiest timing leak. Iterate the
-  // full string regardless of early differences.
   var diff = 0;
   for (var i = 0; i < expected.length; i++) {
     diff |= expected.charCodeAt(i) ^ candidate.charCodeAt(i);
@@ -581,6 +596,26 @@ function handlePreviewEvent(payload) {
  * but a stale UI tab could still POST again — this guard catches that.
  */
 function handleCreateEvent(payload) {
+  // Serialize concurrent creates against the same script. Without this, a
+  // double-click on the modal Confirm button (or two browser tabs open on
+  // the same lesson) both pass the existingId guard below and end up
+  // creating two calendar events with two invite emails to the student.
+  // Script-level lock is sufficient — Apps Script web app concurrency is
+  // already script-scoped — and 30s is well above any normal create path.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30 * 1000)) {
+    throw new Error(
+      "Another schedule is in progress for this studio. Please try again in a moment."
+    );
+  }
+  try {
+    return createEventLocked(payload);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function createEventLocked(payload) {
   var found = findLessonRowFromPayload(payload);
   var sheet = found.sheet;
   var rowIndex = found.rowIndex;
@@ -588,8 +623,15 @@ function handleCreateEvent(payload) {
   var eventIdCol = found.calendarEventIdCol; // 1-indexed
   var statusCol = found.statusCol;            // 1-indexed or null
 
-  // Idempotency guard.
-  var existingId = String(row[CALENDAR_EVENT_ID_COLUMN] || "").trim();
+  // Idempotency guard. Re-reads the row inside the lock so a concurrent
+  // create that finished between findLessonRowFromPayload and here is
+  // observed. Without this re-read, a double-click could still create
+  // two events if the second request's snapshot is older than the
+  // first request's commit.
+  var freshRow = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var freshRowObj = rowToObject(headers, freshRow);
+  var existingId = String(freshRowObj[CALENDAR_EVENT_ID_COLUMN] || "").trim();
   if (existingId) {
     var existingEvent = safeGetEvent(existingId);
     return {
@@ -597,11 +639,13 @@ function handleCreateEvent(payload) {
       alreadyScheduled: true,
       calendarEventId: existingId,
       eventLink: existingEvent ? eventEditUrl(existingEvent) : null,
-      preview: buildEventPreview(row)
+      preview: buildEventPreview(freshRowObj)
     };
   }
 
   var preview = buildEventPreview(row);
+  var attendeesOverride = normalizeAttendeesOverride(payload);
+  var guestsList = attendeesOverride || preview.attendees;
   var calendar = CalendarApp.getDefaultCalendar();
 
   var event = calendar.createEvent(
@@ -610,7 +654,7 @@ function handleCreateEvent(payload) {
     new Date(preview.endISO),
     {
       description: preview.description,
-      guests: preview.attendees.join(","),
+      guests: guestsList.join(","),
       sendInvites: true
     }
   );
@@ -817,7 +861,57 @@ function ensureCalendarEventIdColumn(sheet) {
   for (var i = 0; i < headers.length; i++) {
     if (String(headers[i]).trim() === CALENDAR_EVENT_ID_COLUMN) return;
   }
-  sheet.getRange(1, lastCol + 1).setValue(CALENDAR_EVENT_ID_COLUMN);
+  var newCol = lastCol + 1;
+  sheet.getRange(1, newCol)
+    .setValue(CALENDAR_EVENT_ID_COLUMN)
+    .setFontWeight("bold")
+    .setFontColor(FMT_HEADER_TEXT)
+    .setBackground(FMT_HEADER_BG);
+  // Newly added — apply the auto-managed treatment so it's clearly
+  // off-limits from the moment the column appears, even before the
+  // teacher runs setupSheetFormatting().
+  try {
+    highlightAutoManagedColumn(sheet, newCol, CALENDAR_EVENT_ID_COLUMN);
+    protectAutoManagedColumn(sheet, newCol);
+  } catch (err) {
+    Logger.log("ensureCalendarEventIdColumn: highlight/protect failed: " + err);
+  }
+}
+
+/**
+ * Validates an optional `attendees` array on the create-event payload.
+ * Returns null when the field is absent so the caller falls back to the
+ * auto-built preview list. Throws (bubbles to the frontend as `ok:false`)
+ * on any malformed entry or an empty list — the frontend already enforces
+ * "at least one attendee", so an empty array hitting this side is a bug
+ * worth surfacing rather than silently falling back.
+ */
+function normalizeAttendeesOverride(payload) {
+  if (!payload || !("attendees" in payload)) return null;
+  if (!Array.isArray(payload.attendees)) {
+    throw new Error("attendees must be an array of email strings");
+  }
+  var seen = {};
+  var out = [];
+  for (var i = 0; i < payload.attendees.length; i++) {
+    var raw = payload.attendees[i];
+    if (typeof raw !== "string") {
+      throw new Error("Invalid attendee entry (not a string)");
+    }
+    var v = raw.trim();
+    if (!v) continue;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      throw new Error("Invalid attendee email: " + v);
+    }
+    var k = v.toLowerCase();
+    if (seen[k]) continue;
+    seen[k] = true;
+    out.push(v);
+  }
+  if (out.length === 0) {
+    throw new Error("At least one attendee is required.");
+  }
+  return out;
 }
 
 /** Builds the calendar event metadata for one row (preview + create share this). */
@@ -843,14 +937,24 @@ function buildEventPreview(row) {
       "', start='" + startTime + "', end='" + endTime + "'"
     );
   }
+  // Cross-midnight: a lesson typed as 11:30 PM → 12:30 AM produces an
+  // end that's 23 hours BEFORE the start when both share the same
+  // calendar date. Roll the end forward by one day so the duration is
+  // positive and the calendar event spans correctly. Anything still
+  // ≤ start after that roll is genuinely invalid (same wall-clock).
   if (endDate.getTime() <= startDate.getTime()) {
-    throw new Error("End time must be after start time");
+    var rolled = new Date(endDate.getTime() + 24 * 60 * 60 * 1000);
+    if (rolled.getTime() > startDate.getTime()) {
+      endDate = rolled;
+    } else {
+      throw new Error("End time must be after start time");
+    }
   }
 
   var displayName = studentName || studentEmail;
   var title = lessonFocus
-    ? displayName + " — " + lessonFocus
-    : displayName + " — Music Lesson";
+    ? displayName + " - " + lessonFocus
+    : displayName + " - Music Lesson";
 
   var descriptionParts = [];
   descriptionParts.push("Student: " + displayName + " <" + studentEmail + ">");
@@ -864,11 +968,15 @@ function buildEventPreview(row) {
   );
   var description = descriptionParts.join("\n");
 
+  // Dedupe attendees case-insensitively, normalizing the stored value to
+  // lowercase too — otherwise `Foo@Bar.com` from the form and
+  // `foo@bar.com` from ALWAYS_INVITE_EMAILS produce two attendees on
+  // the calendar event.
   var attendeeSet = {};
-  attendeeSet[studentEmail.toLowerCase()] = studentEmail;
+  if (studentEmail) attendeeSet[studentEmail.toLowerCase()] = studentEmail.toLowerCase();
   for (var i = 0; i < ALWAYS_INVITE_EMAILS.length; i++) {
     var e = ALWAYS_INVITE_EMAILS[i];
-    if (e) attendeeSet[e.toLowerCase()] = e;
+    if (e) attendeeSet[e.toLowerCase()] = e.toLowerCase();
   }
   var attendees = [];
   Object.keys(attendeeSet).forEach(function (k) {
@@ -1378,6 +1486,25 @@ function getStudentResourcesParentFolder() {
 function ensureStudentFolder(email, name) {
   if (!email) throw new Error("ensureStudentFolder requires an email");
 
+  // Serialize concurrent calls for the same student. Without this, two
+  // POSTs (e.g. dashboard auto-load + bulk sync) racing for the same
+  // never-seen-before email both miss the cache and call createFolder,
+  // ending up with two duplicate per-student folders. 30s lock is well
+  // above any normal create + permission grant.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30 * 1000)) {
+    throw new Error(
+      "Another folder operation is in progress. Please retry in a moment."
+    );
+  }
+  try {
+    return ensureStudentFolderLocked(email, name);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function ensureStudentFolderLocked(email, name) {
   var parent = getStudentResourcesParentFolder();
   var props = PropertiesService.getScriptProperties();
   var cacheKey = STUDENT_FOLDER_PROPERTY_PREFIX + email;
@@ -1412,10 +1539,16 @@ function ensureStudentFolder(email, name) {
 /**
  * Grants editor access to the student + every email in
  * STUDENT_RESOURCES_EXTRA_EDITORS, idempotently. Skips emails that
- * already have access at editor-or-above. Errors on a single email
- * (e.g. invalid address) bubble up to the caller.
+ * already have access at editor-or-above OR match the folder owner /
+ * deployer. Per-email errors (invalid address, account not in
+ * Google's directory yet, Drive transient) are LOGGED but do not
+ * throw — otherwise one bad address would break the entire folder
+ * listing for the teacher. The dashboard's "Sync student folders"
+ * backfill button can re-try later.
  */
 function applyStudentFolderPermissions(folder, studentEmail) {
+  var normalizedStudent = String(studentEmail || "").trim().toLowerCase();
+
   var existing = {};
   try {
     folder.getEditors().forEach(function (u) {
@@ -1440,7 +1573,8 @@ function applyStudentFolderPermissions(folder, studentEmail) {
     // Session.getEffectiveUser is gated by scope on some accounts; safe to ignore.
   }
 
-  var targets = [studentEmail];
+  var targets = [];
+  if (normalizedStudent) targets.push(normalizedStudent);
   (STUDENT_RESOURCES_EXTRA_EDITORS || []).forEach(function (e) {
     var trimmed = String(e || "").trim().toLowerCase();
     if (trimmed) targets.push(trimmed);
@@ -1450,7 +1584,19 @@ function applyStudentFolderPermissions(folder, studentEmail) {
     if (!em) return;
     if (skip[em]) return;
     if (existing[em]) return;
-    folder.addEditor(em);
+    try {
+      folder.addEditor(em);
+    } catch (err) {
+      // Don't let one bad address take down the whole folder listing.
+      // Most common cause is the email not being in Google's directory
+      // yet (new student account, typo on the form, or a personal
+      // Gmail with restricted sharing). Teacher can re-share manually
+      // from Drive if needed.
+      Logger.log(
+        "applyStudentFolderPermissions: addEditor(" + em + ") on folder " +
+        folder.getId() + " failed: " + (err && err.message ? err.message : err)
+      );
+    }
   });
 }
 
@@ -1463,7 +1609,7 @@ function applyStudentFolderPermissions(folder, studentEmail) {
 function studentFolderName(name, email) {
   var trimmed = String(name || "").trim();
   if (!trimmed) return String(email).trim();
-  return trimmed + " — " + String(email).trim();
+  return trimmed + " - " + String(email).trim();
 }
 
 /**
@@ -1659,17 +1805,27 @@ function parseRecapKey(payload) {
 function ensureRecapsSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(LESSON_RECAPS_SHEET_NAME);
+  var freshlyCreated = false;
   if (!sheet) {
     sheet = ss.insertSheet(LESSON_RECAPS_SHEET_NAME);
     sheet.getRange(1, 1, 1, LESSON_RECAPS_HEADERS.length)
       .setValues([LESSON_RECAPS_HEADERS])
       .setFontWeight("bold");
     sheet.setFrozenRows(1);
+    freshlyCreated = true;
   } else if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, LESSON_RECAPS_HEADERS.length)
       .setValues([LESSON_RECAPS_HEADERS])
       .setFontWeight("bold");
     sheet.setFrozenRows(1);
+    freshlyCreated = true;
+  }
+  if (freshlyCreated) {
+    try {
+      formatLessonRecapsSheet(sheet);
+    } catch (err) {
+      Logger.log("formatLessonRecapsSheet failed: " + err);
+    }
   }
   return sheet;
 }
@@ -1824,12 +1980,396 @@ function onFormSubmit(e) {
     throw new Error("Email is blank. Response row: " + JSON.stringify(responses));
   }
 
+  // Pull the student's name from the same row when available — used as
+  // the per-student folder name. Tries common header variants so a
+  // future form rename doesn't silently fall back to email-only.
+  var nameIndex = normalizedHeaders.indexOf("first and last name");
+  if (nameIndex === -1) nameIndex = normalizedHeaders.indexOf("name");
+  var studentName = nameIndex === -1
+    ? ""
+    : String(responses[nameIndex] || "").trim();
+
   let sheet = ss.getSheetByName(email);
+  var createdNewTab = false;
 
   if (!sheet) {
     sheet = ss.insertSheet(email);
     sheet.appendRow(headers);
+    createdNewTab = true;
   }
 
   sheet.appendRow(responses);
+
+  if (createdNewTab) {
+    try {
+      formatStudentTab(sheet);
+    } catch (err) {
+      // Formatting is cosmetic — never let a styling failure block the
+      // submission from being recorded.
+      Logger.log("formatStudentTab failed for " + email + ": " + err);
+    }
+  }
+
+  // Auto-onboard the student into Drive: their personal folder (with
+  // editor access) plus viewer access on the shared Class Resources
+  // folder. Each step is wrapped so a configuration miss (folder ID
+  // not set, Drive quota, etc.) never blocks the submission from being
+  // recorded — the bulk Sync handlers can backfill any failures.
+  try {
+    ensureStudentFolder(email, studentName);
+  } catch (err) {
+    Logger.log("ensureStudentFolder failed for " + email + ": " + err);
+  }
+
+  try {
+    grantClassResourcesViewerForStudent(email);
+  } catch (err) {
+    Logger.log("grantClassResourcesViewerForStudent failed for " + email + ": " + err);
+  }
+}
+
+/**
+ * Best-effort: grant viewer access on the Class Resources folder to a
+ * single newly-onboarded student. No-op when the folder isn't
+ * configured (e.g. fresh deployment), when the email already has
+ * access at viewer-or-above, or when Drive rejects the email — all
+ * three are conditions the bulk `sync-class-resources-access` handler
+ * also tolerates, so this stays consistent with that flow.
+ */
+function grantClassResourcesViewerForStudent(studentEmail) {
+  var normalized = String(studentEmail || "").trim().toLowerCase();
+  if (!normalized) return;
+  var folderId = PropertiesService.getScriptProperties()
+    .getProperty(CLASS_RESOURCES_FOLDER_ID_PROPERTY_KEY);
+  if (!folderId) return; // not configured yet — skip silently
+  var folder;
+  try {
+    folder = DriveApp.getFolderById(folderId);
+  } catch (err) {
+    Logger.log("Class Resources folder unreachable: " + err);
+    return;
+  }
+  // Skip if already has access at any level.
+  try {
+    var viewers = folder.getViewers();
+    for (var i = 0; i < viewers.length; i++) {
+      if (String(viewers[i].getEmail() || "").toLowerCase() === normalized) return;
+    }
+    var editors = folder.getEditors();
+    for (var j = 0; j < editors.length; j++) {
+      if (String(editors[j].getEmail() || "").toLowerCase() === normalized) return;
+    }
+  } catch (err) {
+    // Some shared-drive configs throw; fall through and let addViewer be
+    // the source of truth.
+  }
+  // Skip if it's the folder owner or current deployer — addViewer
+  // would error in those cases.
+  try {
+    var ownerEmail = String(folder.getOwner().getEmail() || "").toLowerCase();
+    if (ownerEmail === normalized) return;
+  } catch (err) {
+    // Shared-drive folders without a single owner — fall through.
+  }
+  try {
+    var selfEmail = String(Session.getEffectiveUser().getEmail() || "").toLowerCase();
+    if (selfEmail === normalized) return;
+  } catch (err) {
+    // Session.getEffectiveUser is gated by scope on some accounts; safe to ignore.
+  }
+  try {
+    folder.addViewer(normalized);
+  } catch (err) {
+    // Same reasoning as applyStudentFolderPermissions: a single bad
+    // address shouldn't break the form-submit handler. Log and let
+    // the bulk Sync handler retry later.
+    Logger.log(
+      "grantClassResourcesViewerForStudent: addViewer(" + normalized +
+      ") failed: " + (err && err.message ? err.message : err)
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Sheet formatting + auto-column protection
+//
+// One-time setup: open the Apps Script editor, select setupSheetFormatting,
+// and click Run. It styles every known tab (Form Responses 1, Lesson
+// Schedule, Lesson Recaps, every per-student tab) and applies warning-only
+// protection to the auto-managed columns ("Status", "Calendar Event ID")
+// on the Lesson Schedule tab.
+//
+// New per-student tabs created by `onFormSubmit` are styled at creation,
+// so the teacher only ever needs to run setupSheetFormatting() once after
+// pulling new code (and again if a tab gets manually renamed or rebuilt).
+// ──────────────────────────────────────────────────────────────────────
+
+/** Pomfret crimson palette — mirrors the dashboard's --accent / surfaces. */
+var FMT_HEADER_BG = "#7a142f";
+var FMT_HEADER_TEXT = "#ffffff";
+var FMT_BAND_FIRST = "#fffdfb";
+var FMT_BAND_SECOND = "#f6f1ec";
+var FMT_AUTO_COLUMN_BG = "#ece4dd";
+var FMT_AUTO_COLUMN_TEXT = "#574d44";
+
+/**
+ * Columns the dashboard writes to automatically. Listed by exact header
+ * string; warning-only protection + visual highlight is applied to each.
+ * Anything edited in these columns by hand will be overwritten on the
+ * next create-event / cancel-event call, hence the warning.
+ */
+var AUTO_MANAGED_LESSON_COLUMNS = ["Status", CALENDAR_EVENT_ID_COLUMN];
+
+/** Note shown when the teacher hovers a header cell of an auto column. */
+var AUTO_MANAGED_HEADER_NOTE =
+  "Auto-managed by the dashboard. Don't edit by hand: your changes will " +
+  "be overwritten the next time the dashboard updates this lesson.";
+
+/** Description used on the warning-only protection (also shown in the dialog). */
+var AUTO_MANAGED_PROTECTION_DESCRIPTION =
+  "Auto-managed by the Music Studio dashboard. Please don't edit.";
+
+/**
+ * Property key for an explicit fallback spreadsheet ID. Only consulted
+ * when `SpreadsheetApp.getActiveSpreadsheet()` returns null — which
+ * happens for standalone scripts (not container-bound) or when the
+ * editor is opened from `script.google.com` without an associated
+ * sheet. Set it once in Project Settings → Script Properties:
+ *   MUSIC_STUDIO_SPREADSHEET_ID = <id portion of the sheet URL>
+ * The id is the segment between `/d/` and `/edit` in the sheet URL.
+ */
+var MUSIC_STUDIO_SPREADSHEET_ID_PROPERTY_KEY = "MUSIC_STUDIO_SPREADSHEET_ID";
+
+/**
+ * Returns the music studio spreadsheet, tolerant of how the script was
+ * launched. Used by setup-time helpers that may run from the editor
+ * before the runtime has an active-spreadsheet context.
+ */
+function resolveMusicStudioSpreadsheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss) return ss;
+  var fallbackId = PropertiesService.getScriptProperties()
+    .getProperty(MUSIC_STUDIO_SPREADSHEET_ID_PROPERTY_KEY);
+  if (!fallbackId) {
+    throw new Error(
+      "No active spreadsheet and no fallback ID configured. Either open " +
+      "the editor via Sheet → Extensions → Apps Script, or set the " +
+      MUSIC_STUDIO_SPREADSHEET_ID_PROPERTY_KEY +
+      " Script Property to the spreadsheet ID (the segment between /d/ " +
+      "and /edit in the sheet URL)."
+    );
+  }
+  try {
+    return SpreadsheetApp.openById(fallbackId);
+  } catch (err) {
+    throw new Error(
+      "Could not open spreadsheet by id '" + fallbackId + "': " +
+      (err && err.message ? err.message : String(err))
+    );
+  }
+}
+
+/**
+ * Manual entry point. Run once from the Apps Script editor after deploying
+ * a new version. Formats every known tab and (re-)applies warning-only
+ * protection to the auto-managed columns on the Lesson Schedule tab.
+ *
+ * Idempotent — safe to run repeatedly.
+ */
+function setupSheetFormatting() {
+  var ss = resolveMusicStudioSpreadsheet();
+  var summary = { formatted: [], skipped: [] };
+
+  var roster = ss.getSheetByName("Form Responses 1");
+  if (roster) {
+    formatRosterSheet(roster);
+    summary.formatted.push("Form Responses 1");
+  } else {
+    summary.skipped.push("Form Responses 1 (not found)");
+  }
+
+  var schedule = ss.getSheetByName(LESSON_SCHEDULE_SHEET_NAME);
+  if (schedule) {
+    formatLessonScheduleSheet(schedule);
+    summary.formatted.push(LESSON_SCHEDULE_SHEET_NAME);
+  } else {
+    summary.skipped.push(LESSON_SCHEDULE_SHEET_NAME + " (not found)");
+  }
+
+  var recaps = ss.getSheetByName(LESSON_RECAPS_SHEET_NAME);
+  if (recaps) {
+    formatLessonRecapsSheet(recaps);
+    summary.formatted.push(LESSON_RECAPS_SHEET_NAME);
+  } else {
+    summary.skipped.push(LESSON_RECAPS_SHEET_NAME + " (not created yet)");
+  }
+
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var s = sheets[i];
+    var name = s.getName();
+    if (name === "Form Responses 1") continue;
+    if (name === LESSON_SCHEDULE_SHEET_NAME) continue;
+    if (name === LESSON_RECAPS_SHEET_NAME) continue;
+    // Per-student tabs are named after the student's email.
+    if (!/.+@.+\..+/.test(name)) continue;
+    formatStudentTab(s);
+    summary.formatted.push(name);
+  }
+
+  Logger.log("setupSheetFormatting complete.");
+  Logger.log("Formatted: " + summary.formatted.join(", "));
+  if (summary.skipped.length > 0) {
+    Logger.log("Skipped:   " + summary.skipped.join(", "));
+  }
+  return { ok: true, formatted: summary.formatted, skipped: summary.skipped };
+}
+
+/**
+ * Common base format applied to every tab: bold/colored header row,
+ * frozen first row, alternating row banding in the Pomfret palette,
+ * and a thin border under the header.
+ */
+function applyBaseTableFormat(sheet) {
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var maxRows = Math.max(sheet.getMaxRows(), 2);
+
+  // Header row.
+  var headerRange = sheet.getRange(1, 1, 1, lastCol);
+  headerRange
+    .setFontWeight("bold")
+    .setFontColor(FMT_HEADER_TEXT)
+    .setBackground(FMT_HEADER_BG)
+    .setVerticalAlignment("middle")
+    .setWrap(true);
+
+  sheet.setFrozenRows(1);
+
+  // Body — neutral defaults so banding shows through cleanly.
+  var bodyRange = sheet.getRange(2, 1, maxRows - 1, lastCol);
+  bodyRange
+    .setFontColor("#1a1411")
+    .setFontStyle("normal")
+    .setVerticalAlignment("top");
+
+  // Replace any existing banding on this sheet so we own the colors.
+  var existingBandings = sheet.getBandings();
+  for (var i = 0; i < existingBandings.length; i++) {
+    existingBandings[i].remove();
+  }
+
+  // Apply a wide banding so future rows pick up the alternating colors
+  // without the teacher needing to re-run formatting.
+  var bandingRange = sheet.getRange(1, 1, maxRows, lastCol);
+  var banding = bandingRange.applyRowBanding(
+    SpreadsheetApp.BandingTheme.LIGHT_GREY,
+    /* showHeader */ true,
+    /* showFooter */ false
+  );
+  banding.setHeaderRowColor(FMT_HEADER_BG);
+  banding.setFirstRowColor(FMT_BAND_FIRST);
+  banding.setSecondRowColor(FMT_BAND_SECOND);
+
+  // Resize columns to fit headers + content (capped so a stray long cell
+  // doesn't blow the layout out).
+  for (var c = 1; c <= lastCol; c++) {
+    try {
+      sheet.autoResizeColumn(c);
+      var w = sheet.getColumnWidth(c);
+      if (w < 110) sheet.setColumnWidth(c, 110);
+      if (w > 320) sheet.setColumnWidth(c, 320);
+    } catch (err) {
+      // Some sheets reject autoResize on hidden columns — ignore.
+    }
+  }
+}
+
+/** Format the master roster (Form Responses 1) — base format only. */
+function formatRosterSheet(sheet) {
+  applyBaseTableFormat(sheet);
+}
+
+/** Format a per-student tab — base format only. */
+function formatStudentTab(sheet) {
+  applyBaseTableFormat(sheet);
+}
+
+/** Format the Lesson Recaps tab — base format only. */
+function formatLessonRecapsSheet(sheet) {
+  applyBaseTableFormat(sheet);
+}
+
+/**
+ * Format the Lesson Schedule tab. Base format + visual highlight + warning
+ * protection on every column listed in AUTO_MANAGED_LESSON_COLUMNS.
+ *
+ * Requires the Calendar Event ID column to exist (we ensure it on every
+ * lookup, but if no preview/create has run yet this function will still
+ * try). If a column is missing it is silently skipped — the formatting
+ * is cosmetic and shouldn't block setup.
+ */
+function formatLessonScheduleSheet(sheet) {
+  ensureCalendarEventIdColumn(sheet);
+  applyBaseTableFormat(sheet);
+
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+  for (var i = 0; i < AUTO_MANAGED_LESSON_COLUMNS.length; i++) {
+    var name = AUTO_MANAGED_LESSON_COLUMNS[i];
+    var idx = headerIndex(headers, name);
+    if (idx === -1) continue;
+    highlightAutoManagedColumn(sheet, idx + 1, name);
+    protectAutoManagedColumn(sheet, idx + 1);
+  }
+}
+
+/**
+ * Visual treatment for an auto-managed column: header gets a hover note,
+ * data cells get a muted background + italic font so the teacher
+ * immediately sees the column is "different".
+ */
+function highlightAutoManagedColumn(sheet, columnIndex, columnName) {
+  var maxRows = Math.max(sheet.getMaxRows(), 2);
+
+  sheet.getRange(1, columnIndex)
+    .setNote(AUTO_MANAGED_HEADER_NOTE);
+
+  // Append "(auto)" marker to the visible header without changing the
+  // canonical column name (header lookups use the raw value, so we keep
+  // the original text and use a note instead — no value rewrite).
+
+  sheet.getRange(2, columnIndex, maxRows - 1, 1)
+    .setBackground(FMT_AUTO_COLUMN_BG)
+    .setFontColor(FMT_AUTO_COLUMN_TEXT)
+    .setFontStyle("italic");
+}
+
+/**
+ * Warning-only protection on an auto-managed column. Anyone editing the
+ * cells gets a confirm dialog explaining that the dashboard owns this
+ * data — they can override, but the next create/cancel will rewrite it.
+ *
+ * Idempotent: removes any prior protection with the same description
+ * before adding a fresh one, so re-running setup never stacks up
+ * duplicate protections on the same range.
+ */
+function protectAutoManagedColumn(sheet, columnIndex) {
+  var maxRows = Math.max(sheet.getMaxRows(), 2);
+  var range = sheet.getRange(2, columnIndex, maxRows - 1, 1);
+
+  var existing = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+  for (var i = 0; i < existing.length; i++) {
+    var p = existing[i];
+    if (p.getDescription() === AUTO_MANAGED_PROTECTION_DESCRIPTION) {
+      var r = p.getRange();
+      if (r.getColumn() === columnIndex && r.getNumColumns() === 1) {
+        p.remove();
+      }
+    }
+  }
+
+  range.protect()
+    .setDescription(AUTO_MANAGED_PROTECTION_DESCRIPTION)
+    .setWarningOnly(true);
 }
