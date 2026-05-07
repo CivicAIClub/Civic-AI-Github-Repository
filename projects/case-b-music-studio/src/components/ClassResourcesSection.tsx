@@ -89,12 +89,8 @@ export function ClassResourcesSection() {
             Class Resources
           </h2>
           <p className="muted profile-updates-intro">
-            Shared Drive folder visible to every enrolled student. Drop
-            handouts, recordings, or reference materials here. New students
-            are <strong>automatically</strong> granted viewer access when
-            they fill out the form. The "Re-sync access" button below is a
-            backfill / repair tool: you only need it if you added a student
-            manually or someone lost access.
+            Shared folder visible to every enrolled student. New students get
+            viewer access automatically on form submission.
           </p>
         </div>
         {listState.kind === "ready" && (

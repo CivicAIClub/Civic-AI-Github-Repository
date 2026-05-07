@@ -776,10 +776,7 @@ export function StudentDirectory() {
       <header className="page-header">
         <h1>Students</h1>
         <p className="page-header__lede">
-          Pick a student to open their full profile: instrument, current
-          songs, lesson history, recaps, and personal Drive folder all in one
-          place. Use the filters below to narrow the list, or just scroll.
-          Roster comes straight from your Google Sheet.
+          Click any student to open their full profile inline.
         </p>
       </header>
 

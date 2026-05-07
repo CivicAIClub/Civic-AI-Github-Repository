@@ -403,14 +403,12 @@ a:hover {
 }
 
 .page-header {
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-7);
 }
 
 .page-header h1 {
-  margin: 0 0 var(--space-3);
-  font-size: clamp(2rem, 3.2vw, 2.6rem);
+  margin: 0 0 var(--space-2);
+  font-size: clamp(1.8rem, 2.6vw, 2.2rem);
   font-weight: 600;
   letter-spacing: -0.015em;
   color: var(--text);
@@ -419,10 +417,10 @@ a:hover {
 
 .page-header__lede {
   margin: 0;
-  color: var(--muted);
-  max-width: 44rem;
-  font-size: 1rem;
-  line-height: 1.6;
+  max-width: 60ch;
+  color: var(--muted-strong);
+  font-size: 0.95rem;
+  line-height: 1.5;
   font-weight: 450;
 }
 
@@ -433,7 +431,7 @@ a:hover {
 
 .grid-dashboard {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-6);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
@@ -448,6 +446,7 @@ a:hover {
 
   .grid-dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-7);
   }
 }
 
@@ -456,14 +455,14 @@ a:hover {
   background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-card);
-  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+  padding: var(--space-7);
+  box-shadow: 0 1px 2px rgba(20, 14, 10, 0.025);
+  transition: box-shadow var(--transition-fast);
 }
 
 .card:hover {
-  border-color: var(--accent-border-subtle);
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: 0 1px 2px rgba(20, 14, 10, 0.04),
+    0 4px 14px rgba(20, 14, 10, 0.05);
 }
 
 .card--stat .stat-value {
@@ -492,32 +491,30 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  background:
-    radial-gradient(120% 120% at 100% 0%, rgba(122, 20, 47, 0.045) 0%, transparent 60%),
-    var(--surface-elevated);
+  background: var(--surface-elevated);
 }
 
 .dashboard-hero__value {
-  font-size: clamp(3.4rem, 7vw, 5rem);
+  font-size: clamp(2.8rem, 5.5vw, 4rem);
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1;
-  color: var(--accent);
-  margin: 0.1rem 0 0.4rem;
+  color: var(--text);
+  margin: 0.25rem 0 0.5rem;
 }
 
 .dashboard-hero__caption {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .card__title {
   margin: 0 0 var(--space-3);
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
   color: var(--text);
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .placeholder-card .placeholder-text {
@@ -598,7 +595,10 @@ a:hover {
 }
 
 .profile-updates-intro {
-  margin-bottom: 0.75rem;
+  margin: 0 0 var(--space-4);
+  max-width: 60ch;
+  font-size: 0.85rem;
+  line-height: 1.55;
 }
 
 .profile-updates-list {

@@ -48,11 +48,8 @@ export function StudentFoldersSyncCard() {
         Sync student folders
       </h2>
       <p className="muted profile-updates-intro">
-        Personal Drive folders are <strong>auto-created</strong> the moment a
-        student fills out the form. You usually don't need this button. It's
-        a backfill for two cases: students added <em>before</em> auto-onboarding
-        was turned on, or students added directly to the Sheet (no form
-        submission). Idempotent and safe to re-run.
+        Personal Drive folders are auto-created on form submission. Use
+        this only to backfill students added directly to the Sheet.
       </p>
 
       <div className="student-folders-sync-card__actions">

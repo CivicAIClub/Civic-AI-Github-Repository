@@ -179,10 +179,8 @@ export function Dashboard() {
       <header className="page-header">
         <h1>Dashboard</h1>
         <p className="page-header__lede">
-          Your at-a-glance overview. Search a student, scan recent profile
-          changes, schedule upcoming lessons, and share materials. Everything
-          on this site is powered by your Google Sheet. Edit a row there and
-          a refresh here picks it up.
+          Roster, schedule, and shared materials, all powered by your
+          Google Sheet.
         </p>
       </header>
 
@@ -199,10 +197,6 @@ export function Dashboard() {
 
         <section className="card">
           <h2 className="card__title">Find a student</h2>
-          <p className="muted profile-updates-intro">
-            Type any part of a name or email. Click a result to jump straight
-            into their full profile.
-          </p>
           <label className="label" htmlFor="dash-search">
             Search by name or email
           </label>
@@ -246,9 +240,7 @@ export function Dashboard() {
         <section className="card span-2">
           <h2 className="card__title">Recent student updates</h2>
           <p className="muted profile-updates-intro">
-            Compared to the last time you opened this dashboard (saved in this
-            browser). Edit the Sheet or form, refresh the dashboard, and changes
-            appear here.
+            Changes since your last visit, saved per browser.
           </p>
           {rosterLoadStatus === "idle" && !loadError && (
             <p className="muted">Loading roster and update summary…</p>
@@ -341,9 +333,7 @@ export function Dashboard() {
         <section className="card span-2">
           <h2 className="card__title">Upcoming lessons</h2>
           <p className="muted profile-updates-intro">
-            Booked lessons from your{" "}
-            <strong>Lesson Schedule</strong> sheet (Scheduled / Rescheduled,
-            today onward). Preferred blocks from the form are not shown here.
+            Scheduled or rescheduled lessons, today onward.
           </p>
           {scheduleLoadStatus === "loading" && (
             <p className="muted">Loading schedule…</p>
