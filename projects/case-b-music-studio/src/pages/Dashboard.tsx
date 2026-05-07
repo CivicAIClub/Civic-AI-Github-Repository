@@ -3,7 +3,10 @@ import { Link } from "react-router-dom";
 import { getScheduleList } from "../api/appsScriptSchedule";
 import { getAllStudents } from "../api/appsScriptStudent";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
-import type { LessonRowKey } from "../api/appsScriptCalendar";
+import {
+  cancelCalendarEvent,
+  type LessonRowKey,
+} from "../api/appsScriptCalendar";
 import {
   lessonStableKey,
   upcomingLessonsSorted,
@@ -99,6 +102,23 @@ export function Dashboard() {
 
   const handleEventCreated = useCallback(() => {
     setScheduleRefreshToken((n) => n + 1);
+  }, []);
+
+  const handleCancelLesson = useCallback(async (lesson: ScheduledLesson) => {
+    try {
+      await cancelCalendarEvent({
+        studentEmail: lesson.studentEmail,
+        lessonDate: lesson.lessonDate,
+        startTime: lesson.startTime,
+      });
+      // Re-fetch the schedule so the row's status flips to "Cancelled" and
+      // it drops out of the Upcoming list.
+      setScheduleRefreshToken((n) => n + 1);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not cancel the lesson.";
+      window.alert("Cancel failed: " + message);
+    }
   }, []);
 
   // Same roster as the Students page (Apps Script ?action=list) for count + quick search.
@@ -348,6 +368,7 @@ export function Dashboard() {
                   key={lessonStableKey(lesson, i)}
                   lesson={lesson}
                   variant="link"
+                  onCancel={handleCancelLesson}
                 />
               ))}
             </div>

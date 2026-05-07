@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   formatLessonBlockDisplay,
@@ -18,13 +19,22 @@ type Variant = "link" | "static";
  * stacked DOW / day / month block; the centre column carries the student
  * name (linked to /students?student=…) plus block / focus / notes; the
  * right column shows the status pill and time range.
+ *
+ * `onCancel` is optional. When passed, the row renders a small Cancel
+ * button on the right-hand side for any lesson that currently has a
+ * Calendar Event ID (i.e. is actually on the calendar). Clicking it
+ * pops a confirm dialog, then calls the parent's handler. The parent
+ * is responsible for actually deleting the calendar event and
+ * refetching the schedule afterwards.
  */
 export function LessonRow({
   lesson,
   variant = "link",
+  onCancel,
 }: {
   lesson: ScheduledLesson;
   variant?: Variant;
+  onCancel?: (lesson: ScheduledLesson) => Promise<void> | void;
 }) {
   const parsedDate = lessonDateTime(lesson);
   const tab = lessonCalendarTab(parsedDate);
@@ -35,6 +45,30 @@ export function LessonRow({
   const focus = lesson.lessonFocus.trim();
   const note = lesson.note.trim();
   const studentLabel = lesson.studentName.trim() || lesson.studentEmail;
+
+  const [cancelling, setCancelling] = useState(false);
+  const canCancel =
+    !!onCancel &&
+    lesson.calendarEventId.trim() !== "" &&
+    statusKey !== "cancelled" &&
+    statusKey !== "completed";
+
+  const handleCancelClick = async () => {
+    if (!onCancel) return;
+    const dateStr = tab
+      ? `${tab.weekday} ${tab.day} ${tab.month}`
+      : lesson.lessonDate;
+    const confirmed = window.confirm(
+      `Cancel ${studentLabel}'s lesson on ${dateStr} at ${timeRange || lesson.startTime}?\n\nThis will delete the Google Calendar event and notify everyone invited.`
+    );
+    if (!confirmed) return;
+    setCancelling(true);
+    try {
+      await onCancel(lesson);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div className="lesson-row">
@@ -85,6 +119,17 @@ export function LessonRow({
         {timeRange ? (
           <span className="lesson-row__time">{timeRange}</span>
         ) : null}
+        {canCancel && (
+          <button
+            type="button"
+            className="lesson-row__cancel"
+            onClick={handleCancelClick}
+            disabled={cancelling}
+            title="Cancel this lesson and delete the calendar event"
+          >
+            {cancelling ? "Cancelling…" : "Cancel"}
+          </button>
+        )}
       </div>
     </div>
   );

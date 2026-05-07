@@ -1472,6 +1472,38 @@ a:hover {
   letter-spacing: -0.005em;
 }
 
+.lesson-row__cancel {
+  appearance: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  transition: border-color var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.lesson-row__cancel:hover:not(:disabled) {
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+  background: var(--status-danger-soft);
+}
+
+.lesson-row__cancel:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.lesson-row__cancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media (max-width: 540px) {
   .lesson-row {
     grid-template-columns: auto 1fr;

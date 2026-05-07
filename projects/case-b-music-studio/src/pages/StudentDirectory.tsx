@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { useSearchParams } from "react-router-dom";
+import { cancelCalendarEvent } from "../api/appsScriptCalendar";
 import { getStudentSchedule } from "../api/appsScriptSchedule";
 import type { SheetStudentProfile } from "../api/mapSheetStudentResponse";
 import { getAllStudents, getStudentByEmail } from "../api/appsScriptStudent";
@@ -127,6 +128,27 @@ function StudentDetailPanel({
   const [recapsLoaded, setRecapsLoaded] = useState(false);
   const [recapModalTarget, setRecapModalTarget] =
     useState<RecapEditorTarget | null>(null);
+
+  const handleCancelLesson = useCallback(
+    async (lesson: ScheduledLesson) => {
+      try {
+        await cancelCalendarEvent({
+          studentEmail: lesson.studentEmail,
+          lessonDate: lesson.lessonDate,
+          startTime: lesson.startTime,
+        });
+        // Re-fetch this student's schedule so the cancelled lesson
+        // drops out of Next / Upcoming and the cancelled status pill
+        // appears in Recent.
+        onScheduleRetry();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Could not cancel the lesson.";
+        window.alert("Cancel failed: " + message);
+      }
+    },
+    [onScheduleRetry]
+  );
 
   const teacherNotesDraftRef = useRef(teacherNotesDraft);
   teacherNotesDraftRef.current = teacherNotesDraft;
@@ -425,6 +447,7 @@ function StudentDetailPanel({
                   <LessonRow
                     lesson={schedulePartition.nextLesson}
                     variant="static"
+                    onCancel={handleCancelLesson}
                   />
                 </div>
               ) : (
@@ -441,6 +464,7 @@ function StudentDetailPanel({
                       key={lessonStableKey(lesson, i)}
                       lesson={lesson}
                       variant="static"
+                      onCancel={handleCancelLesson}
                     />
                   ))}
                 </div>
