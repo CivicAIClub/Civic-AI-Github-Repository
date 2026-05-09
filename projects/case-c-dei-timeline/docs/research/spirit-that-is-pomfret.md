@@ -31,8 +31,8 @@
 | 1894 | Mrs. Harriet Peck operated the school's infirmary; Rev. F. Gardiner taught math; Mrs. Peck "would have done all the work herself" if needed | Harriet Benson Peck; Rev. F. Gardiner | Spirit ch1 p6 | humans-of-pomfret (potential "first woman with a formal school role" framing) | 🔧 enrich (current site says "the only females on campus at that time"; book shows Harriet had a clear care/health-care role) |
 | 1894 | School occupied the Charles W. Grosvenor estate; Main House (formerly the "venerable, if rather rickety, Charles Grosvenor Inn") + four cottages on a 150-foot front | Charles W. Grosvenor | Spirit ch1 p5, p7 | timeline 1894 entry | ✓ confirms current site's "Charles Grosvenor Inn" wording |
 | 1894 | Founding party included 4 Pecks: William, brother Theodore M., cousin Rev. Florus C., and Mrs. Harriet — out of 6 founding teachers | the four Pecks | Spirit ch1 p6 | timeline 1894 entry | 🔧 enrich (current site doesn't note the family-business dimension of the founding) |
-| 1895-summer | New wooden School House constructed over the summer | — | Spirit ch1 p15 | (none) | ❌ skip — not DEI |
-| 1895-fall | Student count grows from 42 to 74; four additional faculty added | — | Spirit ch1 p15 | (none) | ❌ skip — not DEI per se, just growth |
+| 1895-summer | New wooden School House constructed over the summer | — | Spirit ch1 p15 | timeline `_id: '1b'` (new) | ➕ ADDED 2026-05-08 (history datapoint, see notes below) |
+| 1895-fall | Student count grows from 42 to 74; four additional faculty added | — | Spirit ch1 p15 | timeline `_id: '1b'` (new) | ➕ ADDED 2026-05-08 |
 | 1894 | Pomfret's first interscholastic team is football (the "rough-and-tumble 1894 eleven") | A.E. Benson; Captain Morgan Goetchius '00 | Spirit ch1 p12 | (none) | ❌ skip — not DEI |
 | 1895 | First Pomfret Tennis Association match (won by school) | Charles K. ("Pell '02") later involved | Spirit ch1 p13 | (none) | ❌ skip |
 | 1898 | Ice hockey introduced at Pomfret (per author McLachlan, schools used "the equipment we had as the first cause of our seven-man team" — context of period sports) | — | Spirit ch1 p13 | (none) | ❌ skip |
@@ -103,9 +103,11 @@ That's ~120 words vs. the current ~75. Trade-off: more specific and Pomfret-y; s
 
 **None significant in Chapter 1.** One small internal inconsistency *within the book* (caption under Peck's portrait says "25 years at St. Mark's"; the *Putnam Patriot* announcement quoted on the same chapter says "22 years"), but neither figure appears on our site, so not actionable.
 
-### New timeline events to ADD
+### New timeline events ADDED
 
-**None recommended from Chapter 1.** The chapter is mostly day-to-day school life, founder biography, and Peck's death. The only candidates that border on DEI-relevant — Catholic students in an Episcopal school, Mrs. Peck's care role — are better handled as enrichments to the existing 1894 entry than as their own events.
+**Added 2026-05-08, on the user's call:** event `_id: '1b'`, "Year Two: Enrollment Reaches 74," 1895-09-01, category Milestones. Documents the founding's first growth marker — student body 42→74, new wooden School House, four faculty added. History rather than strict DEI, but the founding-taking-hold beat is a useful chronological anchor between the 1894 founding and the long quiet stretch that follows.
+
+**Other Chapter 1 candidates considered and rejected:** Catholic students in an Episcopal school, Mrs. Peck's care role, Peck's death + Olmsted succession (handled on the Heads of School page, not the timeline), 1894 first football team.
 
 ### Heads of School page — proposed enrichments
 
