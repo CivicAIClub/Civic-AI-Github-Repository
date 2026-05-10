@@ -75,6 +75,13 @@ const heads: Head[] = [
     bio: 'Launched the "Promise to Posterity" capital campaign in 1977, a $2.5 million effort to eliminate debts and grow the endowment. The campaign helped stabilize the institution after the school\'s worst financial crisis in eight decades.',
   },
   {
+    name: 'Gerrit M. Keator',
+    initials: 'GK',
+    years: '1979-1989',
+    era: 'midcentury',
+    bio: 'A Yale graduate (B.A. American Studies 1961, M.A.T. 1965) and former English teacher at Iolani School in Honolulu \u2014 where he was deputy to his future Pomfret predecessor Burton MacLean \u2014 Keator came to Pomfret from Chestnut Hill Academy in Philadelphia, where he had been headmaster since 1972. His grandfather Austin Roche \'24 had graduated from Pomfret during Olmsted\'s tenure, and his three sons all graduated during his own (Classes of \'82, \'84, and \'89). Under Keator, Pomfret launched the Schwartz Visiting Fellows program in 1988, with Shirley Chisholm as its first fellow, and completed The Campaign for Pomfret, which raised $4.75 million toward the endowment recovery begun under Deitch.',
+  },
+  {
     name: 'Patrick Bassett',
     initials: 'PB',
     years: '1989-1992',
