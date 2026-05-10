@@ -58,7 +58,7 @@ const heads: Head[] = [
     era: 'midcentury',
     image: '/heads/jay-milnor.jpg',
     imageCredit: 'Mission Accomplished (September 2003)',
-    bio: 'The "Founding Father of Coeducation." Under Milnor, Pomfret admitted its first African American student (John Irick \'65) in 1964, joined the National Scholarship Service in 1964, and became a Charter Member of A Better Chance in 1963. The Board of Trustees voted in February 1968 to admit female day students; the first arrived that fall. His daughter Susette \'74 was among the first to board. In the book The Spirit that is Pomfret, Brad Pearson \'65 and Emerson Stone \'45 described his twelve-year tenure as "the years of challenge." Retired to Istanbul, Turkey (1978-1986) as Headmaster of Roberts Academy.',
+    bio: 'The "Founding Father of Coeducation." Under Milnor, Pomfret admitted its first African American student (John Irick \'65) in 1964, joined the National Scholarship Service in 1964, and became a Charter Member of A Better Chance in 1963. The Board of Trustees voted in February 1968 to admit female day students; the first arrived that fall. His daughter Susette \'74 was among the first to board. In the book The Spirit that is Pomfret, Brad Pearson \'65 and Emerson Stone \'45 described his twelve-year tenure as "the years of challenge." Before Pomfret, Milnor served as Headmaster of Robert Academy in Istanbul, Turkey (from 1957). After leaving Pomfret in 1973, he ran the SPHERE program for several years before heading Castilleja School in Palo Alto, California.',
   },
   {
     name: 'Kenneth Deitch',
