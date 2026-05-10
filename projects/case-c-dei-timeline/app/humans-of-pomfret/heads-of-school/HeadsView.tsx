@@ -65,7 +65,7 @@ const heads: Head[] = [
     initials: 'KD',
     years: '1973-1976',
     era: 'midcentury',
-    bio: 'Oversaw Pomfret\'s first official institutional financial aid package (1975), a critical step toward making the school accessible to students from a broader range of socioeconomic backgrounds. This occurred during a period of severe financial difficulty.',
+    bio: 'A New Yorker who earned his A.B. (high honors) and Ph.D. in economics at Harvard and taught there as Assistant Professor of Economics before being recruited to Pomfret. Deitch arrived to lead the school through a near-existential financial crisis: enrollment had been declining since the early 1960s and Pomfret carried roughly $500,000 in operating deficits. He launched an emergency fundraising drive \u2014 anchored by trustee Henry \'Hank\' Strong \'41\'s $450,000 pledge in 1975 \u2014 that bought the school time to survive. He also oversaw Pomfret\'s first official institutional financial aid package (1975), broadening accessibility. Faculty resistance to his curriculum reforms led to his resignation in April 1976.',
   },
   {
     name: 'Rev. Burton A. MacLean',
