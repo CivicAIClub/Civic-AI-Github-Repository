@@ -26,14 +26,14 @@ const heads: Head[] = [
     era: 'founding',
     image: '/heads/william-e-peck.png',
     imageCredit: 'pomfret.org/about-us/history',
-    bio: 'Founded Pomfret School with his wife Harriet on October 3, 1894, opening with 42 male students and six faculty in the Charles Grosvenor Inn. Peck died of pneumonia on February 7, 1897. His wife Harriet and three daughters — Esther, Rachel, and Margaret — were the only females to grace Pomfret at that time, as recalled in The Pontefract: "our new matron, Mrs. F.H. Jones, and we wish her all success in her life among us."',
+    bio: 'Founded Pomfret School with his wife Harriet Benson Peck on October 3, 1894, opening with 42 students and 6 faculty in the Main House of the Charles Grosvenor estate. Four of the founding teachers were Pecks: William, his brother Rev. Theodore M. Peck (English), his cousin Rev. Florus C. Peck (Episcopal pastor and teacher), and Harriet, who ran the infirmary. The Pecks\' three daughters — Esther, Rachel, and Margaret — lived on campus. Peck died of pneumonia on January 7, 1897, after carrying a sick student from the dormitory to the infirmary in his own arms.',
   },
   {
     name: 'William Beach Olmsted',
     initials: 'WO',
     years: '1897-1929',
     era: 'founding',
-    bio: 'Succeeded Peck and formalized the school\'s name as "Pomfret School" in 1899. Under Olmsted, architect Ernest Flagg designed a campus master plan (1905), and the school grew to include Clark Memorial Chapel, a gymnasium, dormitories, and other facilities.',
+    bio: 'Called from St. Mark\'s, where he had been Senior Master, after a brief faculty-led interim by Pomfret\'s Mr. Boulton in the weeks following Peck\'s death. Peck reportedly consulted the older boys before naming his successor and chose Olmsted to continue the founding work. Olmsted formalized the school\'s name as "Pomfret School" in 1899. Under his thirty-two-year tenure, architect Ernest Flagg designed a campus master plan (1905) and the school grew to include Clark Memorial Chapel, a gymnasium, dormitories, and other facilities.',
   },
   {
     name: 'Dexter K. Strong',
