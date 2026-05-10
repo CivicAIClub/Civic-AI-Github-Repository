@@ -646,6 +646,102 @@ If narrower: at minimum the **Keator Heads-of-School ADD** (correcting the live-
 
 ---
 
+## Chapter 13 — Patrick F. Bassett, *Looking to the Future* (1989–1993)
+
+**Pages processed:** 307-322 + canonical timeline pp 323-325 (19 images).
+**Read date:** 2026-05-09.
+**Coverage:** Bassett's four-year tenure — explicit "leader in the coeducational world" mission; the **T-Study** documenting female academic outperformance; **Stoney Reed Leonard** (named) appointed first Dean of Women; CWIS Pomfret chapter (Margie Hueppl + Caroline Twomey co-chairs); 1991-92 theme "Unity amidst diversity"; **Multicultural Awareness Program (MAP)** implemented; **students of color 13%→18%** and **international students 3%→10%** in three years; Louise M. Warner cited as first female trustee (1970, retroactive); William Beach Olmsted Distinguished Service Award established 1992; Bradford Hastings selected December 12, 1992; Pomfret centennial October 3, 1994.
+
+The **canonical book timeline** at pp 323-325 also surfaced two additional factual errors on the live Heads of School page that aren't from Chapter 13's own narrative.
+
+### ⚠ The biggest finding: a SECOND missing headmaster.
+
+The book's canonical headmaster list (Spirit p323) confirms:
+1. Peck (1894-1897)
+2. Olmsted (1897-1929)
+3. **Halleck Lefferts (1930-1942)** ← MISSING from current site
+4. Strong (1942-1951)
+5. Twichell (1951-1961)
+6. Milnor (1961-1973)
+7. Deitch (1973-1976)
+8. MacLean (1976-1979)
+9. Keator (1979-1989) ← we just added in PR #31
+10. Bassett (1989-**1993**, not 1992 as the current site says)
+11. Hastings (**1993**, not 1992 as the current site says)
+
+**Halleck Lefferts (1930-1942)** is entirely missing from `HeadsView.tsx` — the same class of error that Keator was before our last fix. Plus **Bassett's tenure dates are off by one year** and **Hastings starts 1993 not 1992**.
+
+### Working list — extracted facts (highlights)
+
+| date | event | source | target | status |
+|---|---|---|---|---|
+| 1898 | Pomfret incorporates as an institution; First Board of Trustees; Louis C. Clark Trustee President | Spirit p324 | timeline | candidate ➕ ADD |
+| 1929-12-10 | Olmsted dies | Spirit p325 | heads-of-school Olmsted bio | 🔧 enrich |
+| 1929-1930 | Rev. George Langdon, Acting Headmaster (interim between Olmsted and Lefferts) | Spirit p325 | (none) | ❌ skip |
+| 1930 | **Halleck Lefferts becomes 3rd Headmaster** | Spirit p323-325 | heads-of-school | ⚠ **MISSING ENTIRELY** — same class of error as Keator |
+| 1942-11-11 | Lefferts resigns to join Army's Morale and Education Division | Spirit ch7 p149 + p325 | heads-of-school Lefferts entry | enrich-on-add |
+| 1970 | **Louise M. Warner became first female member of Pomfret Board of Trustees** | Spirit ch13 p318 (retroactive citation) | timeline | candidate ➕ ADD |
+| 1979-10-16 | Halleck Lefferts dies in Washington, D.C. | Spirit p325 | heads-of-school Lefferts entry | enrich-on-add |
+| 1985 | Dexter Strong dies | Spirit p325 | heads-of-school Strong bio | 🔧 enrich |
+| 1989-fall | Bassett's stated mission: "to become a leader in the coeducational world…" | Spirit p311 | timeline `_id: '15'` | 🔧 enrich |
+| 1989-fall | **Stoney Reed Leonard** (history teacher) appointed first Dean of Women; **Margie Hueppl + Caroline Twomey** co-chair the Pomfret CWIS chapter | Spirit p311 | timeline `_id: '15'` | 🔧 enrich (name appointees) |
+| 1989-90 | "T-Study": Bassett's statistical comparison shows young women graduate Pomfret with better grades than male counterparts | Spirit p311 | timeline | candidate 🔧 enrich '15' or ➕ ADD |
+| 1990-92 | **Multicultural Awareness Program (MAP)** implemented; theme of 1991-92 school year is "Unity amidst diversity"; students of color rise from 13% to 18%, international students from 3% to 10% | Spirit p315, p318 | timeline | candidate ➕ ADD (significant DEI program currently absent) |
+| 1991 | Edward Albee (Pulitzer-winning playwright) named Schwartz Fellow | Spirit p315 | (`/famous-figures` page; not timeline) | ❌ skip |
+| 1992-01 | William Beach Olmsted Distinguished Service Award established. First recipients: Henry "Hank" Strong '41 and **Louise M. Warner** | Spirit p318, p323 | (none) | ❌ skip |
+| 1992-12-12 | **Bradford Hastings '68 named Headmaster Designate** at special board meeting | Spirit p321, p325 | heads-of-school Hastings entry | 🔧 enrich |
+| 1993-07-01 | **Hastings becomes 11th Headmaster** | Spirit p322, p325 | heads-of-school Hastings entry | ⚠ **DISCREPANCY** — current site says 1992 |
+| 1994-10-03 | Pomfret reaches centenary day | Spirit p325 | (founding event covers this) | ❌ skip |
+
+### Internal verbatim quote bank — Chapter 13 (DO NOT publish)
+
+1. **Reverend Burton MacLean, chapter epigraph** (Spirit p307):
+   > "More and more people are looking to the private schools to be the 'standard bearer' for schooling in America. Pomfret does not shrink from carrying the standard higher and higher."
+
+2. **Bassett's coeducation mission** (Spirit p311):
+   > "One of my goals for Pomfret School is for us to become a leader in the coeducational world, so that myriad ways in which gender discriminations can affect the learning process can be eliminated."
+
+3. **Bassett on the T-Study findings** (Spirit p311):
+   > "Young women are well educated at Pomfret. And believe me, that is extremely unusual at most coeducational schools."
+
+4. **Bassett's 1991-92 theme** (Spirit p318):
+   > "Unity amidst diversity."
+
+5. **Closing centennial verse** (Spirit p322):
+   > "A century atop the hill, / She stands in spirit still, / Stands golden in enlightened rule. / Lead on, our Pomfret School!"
+
+---
+
+## Cross-check summary — Chapter 13 vs current site
+
+### ⚠ DISCREPANCIES (3, two are factual errors on the live site)
+
+**A. Halleck Lefferts (1930-1942) entirely missing from Heads of School page.** Same class of error as Keator was before PR #31. Recommend full Lefferts entry.
+
+**B. Bassett's tenure: 1989-1992 (current site) vs 1989-1993 (book).** Off by one year.
+
+**C. Hastings's tenure: 1992-2011 (current site) vs 1993-2011 (book).** Off by one year on the start side.
+
+### ➕ NEW EVENT CANDIDATES (3)
+
+1. **MAP / "Unity Amidst Diversity" (1991-92)** — Multicultural Awareness Program launched; students of color 13%→18%; international 3%→10%. Significant DEI program missing from timeline. Strong ➕ ADD.
+2. **First Female Trustee (1970)** — Louise M. Warner. Major institutional first. Strong ➕ ADD.
+3. **Pomfret Incorporates (1898)** — first Board of Trustees, Louis C. Clark as inaugural Trustee President. Fills 1894-1946 gap. Modest ➕ ADD.
+
+### 🔧 ENRICHMENT CANDIDATES
+
+- **Heads of School Bassett entry**: pre-Pomfret career at Woodberry Forest; Kellogg National Fellow gender-studies background; ISACS presidency after Pomfret. Plus fix dates 1989-1992 → 1989-1993.
+- **Heads of School Hastings entry**: fix 1992 → 1993 start; born July 1, 1950 in Concord, MA; Pomfret class of 1968; selection date Dec 12, 1992.
+- **Heads of School Olmsted entry**: death date December 10, 1929.
+- **Heads of School Strong entry**: death year 1985.
+- **Event `_id: '15'` (1989 First Dean of Women)**: name **Stoney Reed Leonard** (history teacher) as the appointee; name **Margie Hueppl + Caroline Twomey** as CWIS co-chairs.
+
+### Proposed actions
+
+If you say "apply all": add Lefferts to Heads page; fix Bassett (1989-1993) + Hastings (1993-2011) tenure dates + bios; enrich Olmsted/Strong death dates; name Leonard/Hueppl/Twomey in event '15'; add the three new timeline events (MAP/diversity-metrics 1991, first female trustee 1970, Pomfret incorporates 1898).
+
+---
+
 ## Pending — chapters not yet uploaded
 
 | Chapter | Pages | Author / topic | Expected yield |
@@ -654,7 +750,7 @@ If narrower: at minimum the **Keator Heads-of-School ADD** (correcting the live-
 | ~~9~~ | ~~217~~ | ~~Joseph K. Milnor Jr., *The Years of Challenge*~~ | **DONE 2026-05-09** — see Chapter 9 section above. Yield was higher than expected: **1 major discrepancy** (Milnor's post-Pomfret career) + 2 minor (SPHERE acronym + year), **4 strong ADD candidates** (1962 Utuner, 1964 Outreach, 1969 DC protest, **1972 first female boarders** — biggest gap-filler), **5 enrichments**. Awaiting user sign-off. |
 | ~~10~~ | ~~257~~ | ~~Kenneth M. Deitch, *A Struggle for Survival*~~ | **DONE 2026-05-08** — see Chapter 10 section above. Confirmed gap; one major ➕ ADD candidate, one minor ➕ ADD candidate, one ⚠ discrepancy (Morgan/Merjian girls' soccer coach), and a substantial 🔧 enrichment to the Heads of School Deitch entry. Awaiting user sign-off. |
 | ~~12~~ | ~~281~~ | ~~Gerrit M. Keator, *Camelot Revisited*~~ | **DONE 2026-05-09** — see Chapter 12 section above. **MAJOR FINDING: Keator (1979-1989) is entirely missing from Heads of School page** — current site has a 13-year gap. Plus 2 strong ADDs (Schwartz Fellows program founding 1988 with Shirley Chisholm as first fellow; First Annual Afro-Latin Day Feb 1981 organized by Michael Gary '82) and 1 enrichment to event '15' (external-evaluator context). Awaiting user sign-off. |
-| 13 | 307 | Patrick F. Bassett, *Looking to the Future* | Moderate — only 1989 First Dean of Women is on the site for Bassett's ~13-year tenure |
+| ~~13~~ | ~~307~~ | ~~Patrick F. Bassett, *Looking to the Future*~~ | **DONE 2026-05-09** — see Chapter 13 section above. **MAJOR FINDING: Halleck Lefferts (1930-1942) entirely missing from Heads of School page** — same class of error as Keator was before PR #31. Plus 2 date errors on the live site (Bassett 1989-1992 → 1989-1993; Hastings 1992-2011 → 1993-2011). 3 ➕ ADDs (1898 incorporation, 1970 first female Trustee, 1991-92 MAP / "Unity Amidst Diversity" with diversity metrics) and 5 enrichments. Awaiting user sign-off. |
 | (Various) | — | "Pomfret School Timeline and the World" pages | **Highest priority on arrival** — canonical date-by-date comparison source |
 | (Various) | — | Old campus photos & captions, ch 1-4 | For tour-page / heads-of-school imagery context |
 
