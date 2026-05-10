@@ -40,7 +40,7 @@ const heads: Head[] = [
     initials: 'DS',
     years: '1942-1951',
     era: 'early',
-    bio: 'Expanded Pomfret\'s regional scholarship program, broadening the school\'s reach beyond its traditional base. By 1948, enrollment peaked at 151 students drawn from 11 states, the District of Columbia, one U.S. territory, and four foreign countries.',
+    bio: 'A Portland, Oregon native, Strong graduated Phi Beta Kappa from Williams College and joined the Thacher School (California) faculty under his future predecessor Hal Lefferts before being recruited to succeed Lefferts at Pomfret. Theodore "Tad" Sizer \'49 (later Dean of the Harvard Graduate School of Education) described him as "the antithesis of 1940s independent Episcopal boarding school traditions \u2014 more humane, less concerned about appearances." Under his nine-year tenure, the Board adopted a regional scholarship plan with a stated mission to "broaden the geographical base"; by 1948 enrollment peaked at 151 students drawn from 11 states, DC, one U.S. territory, and four foreign countries. After Pomfret, he led Lakeside School in Seattle, Washington.',
   },
   {
     name: 'David Twichell',
