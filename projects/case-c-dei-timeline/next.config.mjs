@@ -9,6 +9,14 @@ const bundleAnalyzer = withBundleAnalyzer({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Build artifacts directory. Defaults to `.next` for `npm run dev`. Production
+  // builds (`npm run build` / `npm run analyze`) opt into `.next-prod` via the
+  // NEXT_DIST_DIR env var so they don't clobber the dev server's cache. This
+  // prevents the recurring "Cannot find module './XXX.js'" / unstyled-page bug
+  // that hits the running dev server when a prod build overwrites `.next/`.
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
+
+
   // Remote image hosts allowed via next/image. Add new hosts here before
   // referencing them from <Image src=...>.
   images: {
