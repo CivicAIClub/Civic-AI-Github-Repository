@@ -104,23 +104,37 @@ export async function verifySessionToken(
   if (parts.length !== 3) return null;
   const [usernameB64, expiryB64, sigB64] = parts;
 
+  // SESSION_SECRET missing is a system misconfig — let it throw so callers
+  // (middleware) can surface a 503. Anything past this point is "the token
+  // is bad" territory, which we treat as "no session" and return null —
+  // never throw for a malformed/forged/stale cookie or a caller above us
+  // will mistake "user has a corrupt cookie" for "the server is broken."
   const secret = getSessionSecret();
-  const key = await getKey(secret);
 
-  // Re-sign the payload under our key, then constant-time compare against
-  // the signature in the cookie. Anything else is a forgery / wrong secret.
-  const expected = new Uint8Array(
-    await crypto.subtle.sign('HMAC', key, encoder.encode(`${usernameB64}.${expiryB64}`))
-  );
-  const provided = base64UrlToBytes(sigB64);
-  if (!timingSafeEqual(expected, provided)) return null;
+  try {
+    const key = await getKey(secret);
 
-  // Signature OK → trust the payload. Decode and check expiry.
-  const username = new TextDecoder().decode(base64UrlToBytes(usernameB64));
-  const expiresAt = Number(new TextDecoder().decode(base64UrlToBytes(expiryB64)));
-  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
+    // Re-sign the payload under our key, then constant-time compare against
+    // the signature in the cookie. A mismatch (forgery, rotated secret) →
+    // null. A throw inside `base64UrlToBytes` (cookie has chars outside the
+    // base64url alphabet, padding is wrong, etc.) also → null.
+    const expected = new Uint8Array(
+      await crypto.subtle.sign('HMAC', key, encoder.encode(`${usernameB64}.${expiryB64}`))
+    );
+    const provided = base64UrlToBytes(sigB64);
+    if (!timingSafeEqual(expected, provided)) return null;
 
-  return { username, expiresAt };
+    // Signature OK → trust the payload. Decode and check expiry.
+    const username = new TextDecoder().decode(base64UrlToBytes(usernameB64));
+    const expiresAt = Number(new TextDecoder().decode(base64UrlToBytes(expiryB64)));
+    if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
+
+    return { username, expiresAt };
+  } catch {
+    // Token decoding failed somewhere (atob InvalidCharacterError, etc.).
+    // Treat as no session — caller redirects to /admin/login.
+    return null;
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────
