@@ -30,3 +30,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Graphify generated artifacts (regenerable; rebuild with `graphify extract .`)
+graphify-out/

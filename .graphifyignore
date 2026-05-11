@@ -1,0 +1,7 @@
+# Skip image binaries — too costly for Gemini Vision pass.
+# Code (tree-sitter) and docs/markdown (Gemini text) still get extracted.
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
