@@ -77,12 +77,6 @@ const humanOfPomfret = {
       description: 'e.g., "2005-2009" or "1998-present"',
     },
     {
-      name: 'relatedChapelVoice',
-      title: 'Related Chapel Voice',
-      type: 'reference',
-      to: [{ type: 'chapelSpeaker' }],
-    },
-    {
       name: 'tags',
       title: 'Tags',
       type: 'array',

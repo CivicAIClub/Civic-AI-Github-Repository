@@ -6,44 +6,32 @@ import {
   useState,
 } from "react";
 import { useSearchParams } from "react-router-dom";
+import { cancelCalendarEvent } from "../api/appsScriptCalendar";
 import { getStudentSchedule } from "../api/appsScriptSchedule";
 import type { SheetStudentProfile } from "../api/mapSheetStudentResponse";
 import { getAllStudents, getStudentByEmail } from "../api/appsScriptStudent";
 import { FormSubmissionHistorySection } from "../components/FormSubmissionHistorySection";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
 import {
-  formatLessonBlockDisplay,
-  formatLessonTimeRangeForDisplay,
   lessonStableKey,
   partitionStudentLessons,
 } from "../lib/lessonScheduleUtils";
-import type { ScheduledLesson, Student } from "../types";
+import {
+  formatLessonDateLong,
+  formatLessonDateShort,
+} from "../lib/dateUtils";
+import { studentInitials } from "../lib/displayUtils";
+import { LessonRow } from "../components/LessonRow";
+import { StudentResourcesSection } from "../components/StudentResourcesSection";
+import { RecapsTimeline } from "../components/RecapsTimeline";
+import {
+  RecapEditorModal,
+  type RecapEditorTarget,
+} from "../components/RecapEditorModal";
+import { listRecapsForStudent } from "../api/appsScriptRecaps";
+import type { LessonRecap, ScheduledLesson, Student } from "../types";
 
-function formatDateShort(value: string) {
-  if (!value.trim()) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-/** Handles ISO from the API and raw Timestamp strings from the sheet */
-function formatDateLong(value: string) {
-  const d = new Date(value);
-  if (!Number.isNaN(d.getTime())) {
-    return d.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }
-  const t = value.trim();
-  return t.length ? t : "—";
-}
+const RECENT_LESSONS_INITIAL_VISIBLE = 5;
 
 type SheetFetchState =
   | { status: "idle" }
@@ -63,14 +51,20 @@ type ScheduleFetchState =
   | { status: "success"; lessons: ScheduledLesson[] }
   | { status: "error"; message: string };
 
-/** Read-only: older session-only notes before per-student localStorage keys */
-const LEGACY_TEACHER_NOTES_SESSION_PREFIX =
-  "musicStudio.caseB.teacherNotes.v1:";
+/**
+ * Storage keys are namespaced under `caseB.` so other Civic AI Club projects
+ * deployed under the same `civicaiclub.github.io` origin don't collide on
+ * unprefixed keys like `student-notes-<email>`.
+ */
+const TEACHER_NOTES_STORAGE_PREFIX = "caseB.teacherNotes.v1:";
+/** Read-only: keys written by older builds. New writes always use the prefixed key. */
+const LEGACY_LOCAL_NOTES_PREFIX = "student-notes-";
+const LEGACY_SESSION_NOTES_PREFIX = "musicStudio.caseB.teacherNotes.v1:";
 
 const NOTES_AUTOSAVE_MS = 400;
 
 function studentNotesStorageKey(studentId: string): string {
-  return `student-notes-${studentId}`;
+  return `${TEACHER_NOTES_STORAGE_PREFIX}${studentId}`;
 }
 
 function writeStudentNotesLocal(studentId: string, value: string): void {
@@ -83,7 +77,7 @@ function writeStudentNotesLocal(studentId: string, value: string): void {
 
 function displayField(s: string | undefined): string {
   const t = (s ?? "").trim();
-  return t.length ? t : "—";
+  return t.length ? t : "-";
 }
 
 function readStoredTeacherNotes(studentId: string, fallback: string): string {
@@ -92,77 +86,20 @@ function readStoredTeacherNotes(studentId: string, fallback: string): string {
       studentNotesStorageKey(studentId)
     );
     if (fromLocal !== null) return fromLocal;
-    const legacy = sessionStorage.getItem(
-      `${LEGACY_TEACHER_NOTES_SESSION_PREFIX}${studentId}`
+    const legacyLocal = localStorage.getItem(
+      `${LEGACY_LOCAL_NOTES_PREFIX}${studentId}`
     );
-    if (legacy !== null) return legacy;
+    if (legacyLocal !== null) return legacyLocal;
+    const legacySession = sessionStorage.getItem(
+      `${LEGACY_SESSION_NOTES_PREFIX}${studentId}`
+    );
+    if (legacySession !== null) return legacySession;
   } catch {
     /* private mode */
   }
-  return fallback === "—" ? "" : fallback;
+  return fallback === "-" ? "" : fallback;
 }
 
-function BookedLessonSummary({ lesson }: { lesson: ScheduledLesson }) {
-  const timeRange = formatLessonTimeRangeForDisplay(lesson);
-  return (
-    <p className="profile-booked__line">
-      <span className="strong">{formatDateLong(lesson.lessonDate)}</span>
-      {" · "}
-      {formatLessonBlockDisplay(lesson)}
-      {" · "}
-      <span className="muted">{lesson.status.trim() || "—"}</span>
-      {timeRange ? (
-        <>
-          <br />
-          <span className="muted">{timeRange}</span>
-        </>
-      ) : null}
-      {lesson.lessonFocus.trim() ? (
-        <>
-          <br />
-          <span className="muted">{lesson.lessonFocus.trim()}</span>
-        </>
-      ) : null}
-      {lesson.note.trim() ? (
-        <>
-          <br />
-          <span className="muted profile-booked__note">{lesson.note.trim()}</span>
-        </>
-      ) : null}
-    </p>
-  );
-}
-
-function BookedLessonListItem({ lesson }: { lesson: ScheduledLesson }) {
-  const timeRange = formatLessonTimeRangeForDisplay(lesson);
-  return (
-    <div>
-      <span className="strong">{formatDateLong(lesson.lessonDate)}</span>
-      <span className="muted">
-        {" "}
-        · {formatLessonBlockDisplay(lesson)} · {lesson.status.trim() || "—"}
-      </span>
-      {timeRange ? (
-        <span className="muted">
-          <br />
-          {timeRange}
-        </span>
-      ) : null}
-      {lesson.lessonFocus.trim() ? (
-        <span className="muted">
-          <br />
-          {lesson.lessonFocus.trim()}
-        </span>
-      ) : null}
-      {lesson.note.trim() ? (
-        <span className="muted profile-booked__note">
-          <br />
-          {lesson.note.trim()}
-        </span>
-      ) : null}
-    </div>
-  );
-}
 
 function StudentDetailPanel({
   student,
@@ -184,6 +121,35 @@ function StudentDetailPanel({
     "idle" | "pending" | "saved"
   >("idle");
 
+  // Phase 5 — recaps for this student. Loaded once on student switch
+  // and refreshed after a successful save (the modal returns the saved
+  // recap directly so we can patch the local list without another GET).
+  const [recaps, setRecaps] = useState<LessonRecap[]>([]);
+  const [recapsLoaded, setRecapsLoaded] = useState(false);
+  const [recapModalTarget, setRecapModalTarget] =
+    useState<RecapEditorTarget | null>(null);
+
+  const handleCancelLesson = useCallback(
+    async (lesson: ScheduledLesson) => {
+      try {
+        await cancelCalendarEvent({
+          studentEmail: lesson.studentEmail,
+          lessonDate: lesson.lessonDate,
+          startTime: lesson.startTime,
+        });
+        // Re-fetch this student's schedule so the cancelled lesson
+        // drops out of Next / Upcoming and the cancelled status pill
+        // appears in Recent.
+        onScheduleRetry();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Could not cancel the lesson.";
+        window.alert("Cancel failed: " + message);
+      }
+    },
+    [onScheduleRetry]
+  );
+
   const teacherNotesDraftRef = useRef(teacherNotesDraft);
   teacherNotesDraftRef.current = teacherNotesDraft;
 
@@ -197,6 +163,80 @@ function StudentDetailPanel({
     teacherNotesDraftRef.current = next;
     setNotesSaveStatus("idle");
   }, [student.id, student.teacherNotes]);
+
+  // Refetch recaps every time the panel switches student. Failures
+  // here are non-fatal — the timeline just renders "Write recap"
+  // affordances and the user can still compose; the next save will
+  // surface any backend error inline in the modal.
+  useEffect(() => {
+    const email = student.sheetEmail ?? student.id;
+    const ac = new AbortController();
+    setRecapsLoaded(false);
+    setRecaps([]);
+    listRecapsForStudent(email, { signal: ac.signal })
+      .then((list) => {
+        setRecaps(list);
+        setRecapsLoaded(true);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // Tab not yet created (first ever recap save) is a clean empty
+        // list on the backend; any other error is silently treated as
+        // "no recaps loaded" so the timeline still renders the
+        // lessons + "Write recap" buttons.
+        setRecaps([]);
+        setRecapsLoaded(true);
+      });
+    return () => ac.abort();
+  }, [student.id, student.sheetEmail]);
+
+  const openWriteRecap = useCallback((lesson: ScheduledLesson) => {
+    setRecapModalTarget({
+      key: {
+        studentEmail: lesson.studentEmail,
+        lessonDate: lesson.lessonDate,
+        startTime: lesson.startTime,
+      },
+      studentName: lesson.studentName,
+      lessonFocus: lesson.lessonFocus,
+      endTime: lesson.endTime,
+    });
+  }, []);
+
+  const openEditRecap = useCallback(
+    (lesson: ScheduledLesson, _recap: LessonRecap) => {
+      // Edit mode reuses the same modal — it'll fetch the existing
+      // recap on open and pre-fill. The `_recap` is intentionally
+      // unused: the modal is the source of truth for "what was
+      // saved" so we avoid stale prop concerns.
+      setRecapModalTarget({
+        key: {
+          studentEmail: lesson.studentEmail,
+          lessonDate: lesson.lessonDate,
+          startTime: lesson.startTime,
+        },
+        studentName: lesson.studentName,
+        lessonFocus: lesson.lessonFocus,
+        endTime: lesson.endTime,
+      });
+    },
+    []
+  );
+
+  const handleRecapSaved = useCallback((saved: LessonRecap) => {
+    setRecaps((prev) => {
+      const idx = prev.findIndex(
+        (r) =>
+          r.studentEmail === saved.studentEmail &&
+          r.lessonDate === saved.lessonDate &&
+          r.startTime === saved.startTime
+      );
+      if (idx === -1) return [saved, ...prev];
+      const next = prev.slice();
+      next[idx] = saved;
+      return next;
+    });
+  }, []);
 
   const clearNotesSaveTimeout = useCallback(() => {
     if (notesSaveTimeoutRef.current !== null) {
@@ -242,12 +282,20 @@ function StudentDetailPanel({
   return (
     <div className="card student-detail-panel">
       <div className="student-detail-panel__header">
-        <div>
-          <h2 className="student-detail-panel__title">{student.name}</h2>
-          <p className="muted student-detail-panel__meta">
-            {displayField(student.instrument)} ·{" "}
-            {displayField(student.currentLevel)}
-          </p>
+        <div className="student-detail-panel__identity">
+          <span
+            className="student-avatar student-avatar--lg"
+            aria-hidden="true"
+          >
+            {studentInitials(student.name, student.contactEmail ?? student.id)}
+          </span>
+          <div>
+            <h2 className="student-detail-panel__title">{student.name}</h2>
+            <p className="muted student-detail-panel__meta">
+              {displayField(student.instrument)} ·{" "}
+              {displayField(student.currentLevel)}
+            </p>
+          </div>
         </div>
         <button
           type="button"
@@ -278,11 +326,11 @@ function StudentDetailPanel({
           </div>
           <div>
             <dt>Date</dt>
-            <dd>{formatDateLong(student.formDate)}</dd>
+            <dd>{formatLessonDateLong(student.formDate)}</dd>
           </div>
           <div>
             <dt>Last updated</dt>
-            <dd>{formatDateLong(student.lastUpdated)}</dd>
+            <dd>{formatLessonDateLong(student.lastUpdated)}</dd>
           </div>
         </dl>
       </section>
@@ -350,7 +398,7 @@ function StudentDetailPanel({
             <dt>Preferred lesson availability</dt>
             <dd>
               {student.availabilityBlocks.length === 0 ? (
-                "—"
+                "-"
               ) : (
                 <ul className="availability-badges" aria-label="Preferred lesson availability">
                   {student.availabilityBlocks.map((block, i) => (
@@ -370,7 +418,7 @@ function StudentDetailPanel({
         <div className="profile-booked">
           <h4 className="profile-booked__heading">Booked lessons</h4>
           <p className="muted profile-booked__source">
-            From the <strong>Lesson Schedule</strong> sheet (actual lessons —
+            From the <strong>Lesson Schedule</strong> sheet (actual lessons,
             not form preferences).
           </p>
           {(scheduleFetchState.status === "loading" ||
@@ -393,75 +441,99 @@ function StudentDetailPanel({
           )}
           {scheduleFetchState.status === "success" && schedulePartition && (
             <>
-              <p className="profile-booked__sub">Next lesson</p>
+              <p className="profile-booked__sub eyebrow">Next lesson</p>
               {schedulePartition.nextLesson ? (
-                <BookedLessonSummary lesson={schedulePartition.nextLesson} />
+                <div className="lesson-rows">
+                  <LessonRow
+                    lesson={schedulePartition.nextLesson}
+                    variant="static"
+                    onCancel={handleCancelLesson}
+                  />
+                </div>
               ) : (
-                <p className="muted profile-booked__line">—</p>
+                <p className="muted profile-booked__line">None scheduled.</p>
               )}
 
-              <p className="profile-booked__sub">Upcoming</p>
+              <p className="profile-booked__sub eyebrow">Upcoming</p>
               {schedulePartition.upcomingLessons.length === 0 ? (
-                <p className="muted profile-booked__line">—</p>
+                <p className="muted profile-booked__line">None scheduled.</p>
               ) : (
-                <ul className="lesson-schedule-list lesson-schedule-list--compact">
+                <div className="lesson-rows">
                   {schedulePartition.upcomingLessons.map((lesson, i) => (
-                    <li
+                    <LessonRow
                       key={lessonStableKey(lesson, i)}
-                      className="lesson-schedule-list__row"
-                    >
-                      <BookedLessonListItem lesson={lesson} />
-                    </li>
+                      lesson={lesson}
+                      variant="static"
+                      onCancel={handleCancelLesson}
+                    />
                   ))}
-                </ul>
+                </div>
               )}
 
-              <p className="profile-booked__sub">Recent</p>
-              {schedulePartition.recentLessons.length === 0 ? (
-                <p className="muted profile-booked__line">—</p>
-              ) : (
-                <ul className="lesson-schedule-list lesson-schedule-list--compact">
-                  {schedulePartition.recentLessons.map((lesson, i) => (
-                    <li
-                      key={lessonStableKey(lesson, i)}
-                      className="lesson-schedule-list__row"
-                    >
-                      <BookedLessonListItem lesson={lesson} />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <p className="profile-booked__sub eyebrow">
+                Recent
+                {schedulePartition.recentLessons.length > 0 && (
+                  <span className="muted">
+                    {" "}· {schedulePartition.recentLessons.length} total
+                  </span>
+                )}
+                {!recapsLoaded && schedulePartition.recentLessons.length > 0 && (
+                  <span className="muted"> · loading recaps…</span>
+                )}
+              </p>
+              <RecapsTimeline
+                lessons={schedulePartition.recentLessons}
+                recaps={recaps}
+                initialVisible={RECENT_LESSONS_INITIAL_VISIBLE}
+                onWriteRecap={openWriteRecap}
+                onEditRecap={openEditRecap}
+              />
             </>
           )}
         </div>
       </section>
 
+      <StudentResourcesSection
+        studentEmail={student.sheetEmail ?? student.id}
+        studentName={student.name}
+      />
+
       <section className="profile-section profile-section--notes" aria-labelledby="profile-teacher-h">
-        <h3 id="profile-teacher-h" className="profile-section__heading">
-          Teacher notes
-        </h3>
-        <p className="muted profile-teacher-notes-lead">
-          Saved in this browser until a server endpoint exists.
-        </p>
-        <textarea
-          className="input profile-teacher-notes"
-          rows={6}
-          value={teacherNotesDraft}
-          onChange={(e) => handleTeacherNotesChange(e.target.value)}
-          onBlur={flushNotesToLocalStorage}
-          aria-label="Teacher notes for this student"
-          placeholder="Lesson prep, follow-ups, private reminders…"
-        />
-        {(notesSaveStatus === "pending" || notesSaveStatus === "saved") && (
-          <p
-            className="muted profile-teacher-notes-status"
-            role="status"
-            aria-live="polite"
-          >
-            {notesSaveStatus === "pending" ? "Saving…" : "Saved"}
-          </p>
-        )}
+        <div className="notes-card">
+          <div className="notes-card__header">
+            <h3 id="profile-teacher-h" className="profile-section__heading">
+              Teacher notes
+            </h3>
+            <p className="muted profile-teacher-notes-lead">
+              Saved in this browser until a server endpoint exists.
+            </p>
+          </div>
+          <textarea
+            className="profile-teacher-notes"
+            rows={6}
+            value={teacherNotesDraft}
+            onChange={(e) => handleTeacherNotesChange(e.target.value)}
+            onBlur={flushNotesToLocalStorage}
+            aria-label="Teacher notes for this student"
+            placeholder="Lesson prep, follow-ups, private reminders…"
+          />
+          {(notesSaveStatus === "pending" || notesSaveStatus === "saved") && (
+            <p
+              className="profile-teacher-notes-status"
+              role="status"
+              aria-live="polite"
+            >
+              {notesSaveStatus === "pending" ? "Saving…" : "Saved"}
+            </p>
+          )}
+        </div>
       </section>
+
+      <RecapEditorModal
+        target={recapModalTarget}
+        onClose={() => setRecapModalTarget(null)}
+        onSaved={handleRecapSaved}
+      />
     </div>
   );
 }
@@ -518,20 +590,33 @@ export function StudentDirectory() {
   }, [rosterRetry]);
 
   const instruments = useMemo(() => {
-    return [...new Set(students.map((s) => s.instrument))].sort();
+    return [...new Set(students.map((s) => s.instrument))]
+      .filter((v) => v && v !== "-")
+      .sort();
   }, [students]);
 
   const levels = useMemo(() => {
-    return [...new Set(students.map((s) => s.currentLevel))].sort();
+    return [...new Set(students.map((s) => s.currentLevel))]
+      .filter((v) => v && v !== "-")
+      .sort();
   }, [students]);
 
+  /**
+   * Match the URL's `?student=` value to a roster student by lowercased
+   * email. Email casing can drift between Form Responses 1 and Lesson
+   * Schedule (the dashboard's "Upcoming lessons" link uses whatever the
+   * Lesson Schedule sheet has), so a case-sensitive lookup would silently
+   * leave the panel empty.
+   */
   const syncSelectionFromUrl = useCallback(() => {
     const fromUrl = searchParams.get("student");
     if (!fromUrl) {
       setSelectedId(null);
       return;
     }
-    if (students.some((s) => s.id === fromUrl)) setSelectedId(fromUrl);
+    const target = fromUrl.trim().toLowerCase();
+    const match = students.find((s) => s.id.toLowerCase() === target);
+    if (match) setSelectedId(match.id);
     else setSelectedId(null);
   }, [searchParams, students]);
 
@@ -691,8 +776,7 @@ export function StudentDirectory() {
       <header className="page-header">
         <h1>Students</h1>
         <p className="page-header__lede">
-          Choose a student to view their profile here — no separate page. Data
-          comes from your Google Sheet via Apps Script.
+          Click any student to open their full profile inline.
         </p>
       </header>
 
@@ -769,14 +853,22 @@ export function StudentDirectory() {
                 onClick={() => handleCardClick(s.id)}
                 aria-expanded={selectedId === s.id}
               >
-                <span className="student-card__name">{s.name}</span>
-                <span className="student-card__meta">
-                  <span>{s.instrument}</span>
-                  <span className="dot" aria-hidden />
-                  <span>{s.currentLevel}</span>
+                <span
+                  className="student-avatar student-card__avatar"
+                  aria-hidden="true"
+                >
+                  {studentInitials(s.name, s.contactEmail ?? s.id)}
                 </span>
-                <span className="student-card__updated muted">
-                  Updated {formatDateShort(s.lastUpdated)}
+                <span className="student-card__body">
+                  <span className="student-card__name">{s.name}</span>
+                  <span className="student-card__meta">
+                    <span>{s.instrument}</span>
+                    <span className="dot" aria-hidden />
+                    <span>{s.currentLevel}</span>
+                  </span>
+                  <span className="student-card__updated muted">
+                    Updated {formatLessonDateShort(s.lastUpdated)}
+                  </span>
                 </span>
               </button>
             ))}

@@ -56,8 +56,8 @@ export function diffFormSubmissions(
     if (before !== after) {
       changes.push({
         label,
-        before: before.length ? before : "—",
-        after: after.length ? after : "—",
+        before: before.length ? before : "(blank)",
+        after: after.length ? after : "(blank)",
       });
     }
   }

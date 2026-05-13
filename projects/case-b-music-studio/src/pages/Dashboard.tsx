@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getScheduleList } from "../api/appsScriptSchedule";
 import { getAllStudents } from "../api/appsScriptStudent";
 import { sheetProfileToStudent } from "../api/studentFromSheet";
 import {
-  formatLessonBlockDisplay,
-  formatLessonTimeRangeForDisplay,
+  cancelCalendarEvent,
+  type LessonRowKey,
+} from "../api/appsScriptCalendar";
+import {
   lessonStableKey,
   upcomingLessonsSorted,
 } from "../lib/lessonScheduleUtils";
@@ -15,24 +17,21 @@ import {
   saveProfileSnapshots,
   type DashboardProfileUpdate,
 } from "../lib/studentProfileSnapshots";
+import {
+  EXTERNAL_LINKS,
+  EXTERNAL_LINK_ORDER,
+} from "../lib/externalLinks";
+import { LessonRow } from "../components/LessonRow";
+import { PendingLessonsSection } from "../components/PendingLessonsSection";
+import { EventPreviewModal } from "../components/EventPreviewModal";
+import { ClassResourcesSection } from "../components/ClassResourcesSection";
+import { StudentFoldersSyncCard } from "../components/StudentFoldersSyncCard";
 import type { ScheduledLesson, Student } from "../types";
 
 function clipText(s: string, max = 160): string {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max)}…`;
-}
-
-function formatLessonDate(value: string) {
-  if (!value.trim()) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value.trim() || "—";
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export function Dashboard() {
@@ -52,6 +51,22 @@ export function Dashboard() {
   >("loading");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleLessons, setScheduleLessons] = useState<ScheduledLesson[]>([]);
+
+  /**
+   * Phase 2: lesson currently open in the preview modal. Identified by
+   * composite key so the modal can re-fetch a fresh preview on each
+   * open without needing a Lesson ID column on the sheet.
+   */
+  const [pendingPreviewKey, setPendingPreviewKey] = useState<
+    LessonRowKey | null
+  >(null);
+
+  /**
+   * Bumped after a successful event creation to trigger the schedule
+   * effect to re-run. Cheaper than threading an explicit refetch
+   * function through the modal.
+   */
+  const [scheduleRefreshToken, setScheduleRefreshToken] = useState(0);
 
   const upcomingForDashboard = useMemo(() => {
     return upcomingLessonsSorted(scheduleLessons).slice(0, 20);
@@ -75,6 +90,35 @@ export function Dashboard() {
         setScheduleLoadStatus("error");
       });
     return () => ac.abort();
+  }, [scheduleRefreshToken]);
+
+  const openPreviewFor = useCallback((lesson: ScheduledLesson) => {
+    setPendingPreviewKey({
+      studentEmail: lesson.studentEmail,
+      lessonDate: lesson.lessonDate,
+      startTime: lesson.startTime,
+    });
+  }, []);
+
+  const handleEventCreated = useCallback(() => {
+    setScheduleRefreshToken((n) => n + 1);
+  }, []);
+
+  const handleCancelLesson = useCallback(async (lesson: ScheduledLesson) => {
+    try {
+      await cancelCalendarEvent({
+        studentEmail: lesson.studentEmail,
+        lessonDate: lesson.lessonDate,
+        startTime: lesson.startTime,
+      });
+      // Re-fetch the schedule so the row's status flips to "Cancelled" and
+      // it drops out of the Upcoming list.
+      setScheduleRefreshToken((n) => n + 1);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not cancel the lesson.";
+      window.alert("Cancel failed: " + message);
+    }
   }, []);
 
   // Same roster as the Students page (Apps Script ?action=list) for count + quick search.
@@ -122,7 +166,11 @@ export function Dashboard() {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return students
-      .filter((s) => s.name.toLowerCase().includes(q))
+      .filter((s) => {
+        if (s.name.toLowerCase().includes(q)) return true;
+        const email = (s.contactEmail ?? s.id).toLowerCase();
+        return email.includes(q);
+      })
       .slice(0, 8);
   }, [query, students]);
 
@@ -131,29 +179,32 @@ export function Dashboard() {
       <header className="page-header">
         <h1>Dashboard</h1>
         <p className="page-header__lede">
-          Quick overview for lessons — roster comes from your Google Sheet.
+          Roster, schedule, and shared materials, all powered by your
+          Google Sheet.
         </p>
       </header>
 
       <div className="grid-dashboard">
-        <section className="card card--stat">
-          <h2 className="card__title">Total students</h2>
-          <p className="stat-value">{loadError ? "—" : students.length}</p>
-          <p className="muted">
-            {loadError ? loadError : "Loaded from your Google Sheet (roster)"}
+        <section className="card card--stat dashboard-hero">
+          <span className="dashboard-hero__eyebrow">Total students</span>
+          <p className="dashboard-hero__value">
+            {loadError ? "?" : students.length}
+          </p>
+          <p className="muted dashboard-hero__caption">
+            {loadError ? loadError : "Loaded live from your Google Sheet"}
           </p>
         </section>
 
         <section className="card">
           <h2 className="card__title">Find a student</h2>
           <label className="label" htmlFor="dash-search">
-            Search by name
+            Search by name or email
           </label>
           <input
             id="dash-search"
             type="search"
             className="input"
-            placeholder="Type a name…"
+            placeholder="Type a name or email…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoComplete="off"
@@ -189,9 +240,7 @@ export function Dashboard() {
         <section className="card span-2">
           <h2 className="card__title">Recent student updates</h2>
           <p className="muted profile-updates-intro">
-            Compared to the last time you opened this dashboard (saved in this
-            browser). Edit the Sheet or form, refresh the dashboard, and changes
-            appear here.
+            Changes since your last visit, saved per browser.
           </p>
           {rosterLoadStatus === "idle" && !loadError && (
             <p className="muted">Loading roster and update summary…</p>
@@ -232,7 +281,7 @@ export function Dashboard() {
                             <span className="strong">New on roster</span>
                             <span className="muted">
                               {" "}
-                              — {item.profile.name || item.profile.email}
+                              · {item.profile.name || item.profile.email}
                             </span>
                           </Link>
                         </p>
@@ -276,12 +325,15 @@ export function Dashboard() {
             )}
         </section>
 
+        <PendingLessonsSection
+          lessons={scheduleLessons}
+          onPreview={openPreviewFor}
+        />
+
         <section className="card span-2">
           <h2 className="card__title">Upcoming lessons</h2>
           <p className="muted profile-updates-intro">
-            Booked lessons from your{" "}
-            <strong>Lesson Schedule</strong> sheet (Scheduled / Rescheduled,
-            today onward). Preferred blocks from the form are not shown here.
+            Scheduled or rescheduled lessons, today onward.
           </p>
           {scheduleLoadStatus === "loading" && (
             <p className="muted">Loading schedule…</p>
@@ -292,7 +344,6 @@ export function Dashboard() {
               <p className="muted empty-state">
                 Add <code>?action=schedule-list</code> to your Apps Script and a
                 tab named <code>Lesson Schedule</code> (see{" "}
-                <code>apps-script/lesson-schedule-doGet-snippet.js</code> and{" "}
                 <code>src/api/appsScriptSchedule.ts</code>).
               </p>
             </div>
@@ -301,52 +352,69 @@ export function Dashboard() {
             <p className="placeholder-text">No upcoming scheduled lessons.</p>
           )}
           {scheduleLoadStatus === "ok" && upcomingForDashboard.length > 0 && (
-            <ul className="lesson-schedule-list">
-              {upcomingForDashboard.map((lesson, i) => {
-                const timeRange = formatLessonTimeRangeForDisplay(lesson);
-                return (
-                <li
+            <div className="lesson-rows">
+              {upcomingForDashboard.map((lesson, i) => (
+                <LessonRow
                   key={lessonStableKey(lesson, i)}
-                  className="lesson-schedule-list__row"
-                >
-                  <div className="lesson-schedule-list__main">
-                    <Link
-                      to={`/students?student=${encodeURIComponent(lesson.studentEmail)}`}
-                      className="link-block lesson-schedule-list__link"
-                    >
-                      <span className="strong lesson-schedule-list__name">
-                        {lesson.studentName.trim() || lesson.studentEmail}
-                      </span>
-                      <span className="muted lesson-schedule-list__meta">
-                        {formatLessonDate(lesson.lessonDate)}
-                      </span>
-                      <span className="lesson-schedule-list__block">
-                        {formatLessonBlockDisplay(lesson)}
-                      </span>
-                      {timeRange ? (
-                        <span className="muted lesson-schedule-list__time">
-                          {timeRange}
-                        </span>
-                      ) : null}
-                    </Link>
-                  </div>
-                  <div className="lesson-schedule-list__side">
-                    <span className="lesson-schedule-list__status">
-                      {lesson.status.trim() || "—"}
-                    </span>
-                    <span className="muted lesson-schedule-list__focus">
-                      {lesson.lessonFocus.trim()
-                        ? clipText(lesson.lessonFocus, 120)
-                        : "—"}
-                    </span>
-                  </div>
-                </li>
-              );
-              })}
-            </ul>
+                  lesson={lesson}
+                  variant="link"
+                  onCancel={handleCancelLesson}
+                />
+              ))}
+            </div>
           )}
         </section>
+
+        <ClassResourcesSection />
+
+        <StudentFoldersSyncCard />
+
+        <section
+          className="card span-2 quick-links-card"
+          aria-labelledby="quick-links-h"
+        >
+          <h2 id="quick-links-h" className="card__title">
+            Quick links
+          </h2>
+          <p className="muted profile-updates-intro">
+            Open the source spreadsheet or Google Form in a new tab.
+          </p>
+          <ul className="quick-links">
+            {EXTERNAL_LINK_ORDER.map((key) => {
+              const link = EXTERNAL_LINKS[key];
+              return (
+                <li key={key}>
+                  <a
+                    className="quick-links__item"
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="quick-links__title">
+                      <span className="strong">{link.label}</span>
+                      <span
+                        className="quick-links__icon"
+                        aria-hidden="true"
+                      >
+                        ↗
+                      </span>
+                    </span>
+                    <span className="muted quick-links__desc">
+                      {link.description}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       </div>
+
+      <EventPreviewModal
+        lessonKey={pendingPreviewKey}
+        onClose={() => setPendingPreviewKey(null)}
+        onCreated={handleEventCreated}
+      />
     </div>
   );
 }

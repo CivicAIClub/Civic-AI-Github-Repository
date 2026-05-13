@@ -17,8 +17,8 @@
  *    URL:  BASE_URL?email=student@example.com
  *    Body: one JSON object (same columns as above).
  *
- * Paste your deployed URL below (Publish → Deploy as web app → copy /exec).
- * Do not add ?query here — this file appends ?action=list or ?email=...
+ * The deployed `/exec` URL lives in `VITE_APPS_SCRIPT_BASE_URL` in
+ * `.env.local`. The frontend appends `?action=...` or `?email=...`.
  */
 import {
   mapSheetRowToProfile,
@@ -26,8 +26,14 @@ import {
 } from "./mapSheetStudentResponse";
 import { pickLatestProfileFromSubmissions } from "../lib/formSubmissionHistory";
 
-export const APPS_SCRIPT_BASE_URL =
-  "https://script.google.com/macros/s/AKfycbwQnBSy26Wo54JwOIMAbaCJf37qAPF_kHpBxIJrm8AanfmxRSmGJIBKjYdHuaU2yxpN9g/exec";
+const RAW_BASE_URL = (import.meta.env.VITE_APPS_SCRIPT_BASE_URL ?? "").trim();
+if (!RAW_BASE_URL) {
+  throw new Error(
+    "VITE_APPS_SCRIPT_BASE_URL is not set. Copy .env.example to .env.local " +
+      "and paste your Apps Script /exec URL."
+  );
+}
+export const APPS_SCRIPT_BASE_URL = RAW_BASE_URL;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

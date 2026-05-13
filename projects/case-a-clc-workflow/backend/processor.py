@@ -19,7 +19,7 @@ Output shape per normalized assignment:
 """
 
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 from dateutil import tz
 
@@ -52,7 +52,7 @@ def normalize_assignment(
     raw: dict[str, Any],
     course_name: str,
     timezone_name: str = "America/New_York",
-) -> dict[str, Any] | None:
+) -> Optional[dict[str, Any]]:
     """Convert a raw Canvas assignment dict into a normalized shape.
 
     Returns None if:
@@ -62,7 +62,7 @@ def normalize_assignment(
     Canvas always returns due_at in UTC ISO-8601 format.
     We convert to the configured local timezone for display.
     """
-    due_at_str: str | None = raw.get("due_at")
+    due_at_str: Optional[str] = raw.get("due_at")
     if not due_at_str:
         return None
 
@@ -94,12 +94,29 @@ def normalize_assignment(
     }
 
 
-def filter_upcoming(
-    assignments: list[dict[str, Any]], weeks_ahead: int = 2
+def filter_assignments_in_calendar_weeks(
+    assignments: list[dict[str, Any]],
+    weeks_ahead: int,
+    timezone_name: str,
 ) -> list[dict[str, Any]]:
-    """Keep only assignments due within the next `weeks_ahead` weeks."""
-    cutoff_days = weeks_ahead * 7
-    return [a for a in assignments if 0 <= a["days_until_due"] <= cutoff_days]
+    """Keep assignments due from today through Sunday of the Nth calendar week.
+
+    Weeks start on Monday (aligned with ``week_start`` grouping). For example,
+    with ``weeks_ahead=1`` only assignments due through this week's Sunday pass.
+    """
+    local_tz = tz.gettz(timezone_name)
+    today = datetime.now(local_tz).date()
+    monday_this_week = today - timedelta(days=today.weekday())
+    last_included_sunday = monday_this_week + timedelta(days=weeks_ahead * 7 - 1)
+
+    kept: list[dict[str, Any]] = []
+    for a in assignments:
+        due = date.fromisoformat(a["due_date"])
+        if due < today:
+            continue
+        if due <= last_included_sunday:
+            kept.append(a)
+    return kept
 
 
 def group_by_week(
@@ -152,18 +169,12 @@ def build_weekly_schedule(
 
     Returns:
     {
-      "weeks": {
-        "2026-04-06": {
-          "week_label": "Apr 6 – Apr 12",
-          "days": [
-            {"day": "Monday", "assignments": [...]},
-            ...
-          ]
-        }
-      },
+      "weeks": { ... },
       "total_assignments": 14,
       "generated_at": "2026-04-06T12:00:00"
     }
+
+    (``main.py`` also adds ``student_full_name`` from Canvas ``/users/self/profile``.)
     """
     # Step 1: Normalize all raw Canvas assignments
     normalized = []
@@ -173,7 +184,9 @@ def build_weekly_schedule(
             normalized.append(result)
 
     # Step 2: Filter to the requested window
-    upcoming = filter_upcoming(normalized, weeks_ahead)
+    upcoming = filter_assignments_in_calendar_weeks(
+        normalized, weeks_ahead, timezone_name
+    )
 
     # Step 3: Group by week
     by_week = group_by_week(upcoming)

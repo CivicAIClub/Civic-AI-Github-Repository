@@ -3,11 +3,15 @@ AutoPlanner — FastAPI application.
 
 Routes:
   GET  /api/assignments     Fetch and return processed weekly schedule from Canvas
-  POST /api/generate-doc    Call Apps Script Web App to create a Google Doc
+  POST /api/generate-doc    Call Apps Script to create/update a Google Doc (nested document tabs per week)
   GET  /health              Health check
 
 Run locally:
+  cd projects/case-a-clc-workflow
   uvicorn backend.main:app --reload
+  Open http://127.0.0.1:8000/ — the UI is served from the same server as the API.
+
+You can still open frontend/index.html directly; set “AutoPlanner backend URL” to http://127.0.0.1:8000 if fetch fails.
 
 The Canvas API token, Canvas base URL, Apps Script URL, and timezone are all
 read from a .env file in the backend/ directory. Copy .env.example to .env
@@ -17,15 +21,16 @@ and fill in the values before running.
 import asyncio
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
-from backend.canvas_api import get_all_assignments
+from backend.canvas_api import get_all_assignments, get_self_profile
 from backend.google_docs import send_to_apps_script
 from backend.processor import build_weekly_schedule
 
@@ -67,9 +72,9 @@ def _get_env(key: str) -> str:
 
 @app.get("/api/assignments", summary="Fetch and process Canvas assignments")
 async def get_assignments(
-    weeks_ahead: int = 2,
-    canvas_token: str | None = None,
-    canvas_base_url: str | None = None,
+    weeks_ahead: int = Query(2, ge=1, le=12, description="Calendar weeks from this Monday"),
+    canvas_token: Optional[str] = None,
+    canvas_base_url: Optional[str] = None,
 ) -> dict[str, Any]:
     """Fetch all upcoming assignments from Canvas, normalize them, and return
     a structured weekly schedule grouped Mon–Sun.
@@ -90,7 +95,12 @@ async def get_assignments(
         # canvas_api.py uses synchronous httpx to keep it simple and testable.
         # asyncio.to_thread offloads it to a thread pool so we never block
         # FastAPI's async event loop.
-        raw_pairs = await asyncio.to_thread(get_all_assignments, token, base_url)
+        def _fetch_canvas():
+            pairs = get_all_assignments(token, base_url)
+            profile = get_self_profile(token, base_url)
+            return pairs, profile
+
+        raw_pairs, profile = await asyncio.to_thread(_fetch_canvas)
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=502,
@@ -106,6 +116,15 @@ async def get_assignments(
         )
 
     schedule = build_weekly_schedule(raw_pairs, timezone_name, weeks_ahead)
+    display_name = (
+        (profile.get("name") or profile.get("short_name") or "Student") or "Student"
+    )
+    schedule["student_full_name"] = str(display_name).strip() or "Student"
+    # Stable id for the token holder — used by the frontend to reuse the same Google Doc
+    # across roster edits and browsers (per Canvas user), not the ephemeral UI row id.
+    cid = profile.get("id")
+    if cid is not None:
+        schedule["canvas_user_id"] = cid
     return schedule
 
 
@@ -114,24 +133,42 @@ async def get_assignments(
 # ---------------------------------------------------------------------------
 
 class GenerateDocRequest(BaseModel):
-    """Mirrors the output shape of build_weekly_schedule()."""
+    """Schedule payload plus optional existing Google Doc to update."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
     weeks: dict[str, Any]
     total_assignments: int
     generated_at: str
+    student_full_name: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("student_full_name", "studentFullName"),
+        serialization_alias="studentFullName",
+        description="From Canvas profile; used for the Google Doc title.",
+    )
+    document_id: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("documentId", "spreadsheetId"),
+        serialization_alias="documentId",
+        description="If set, add/update week tabs inside this Doc instead of creating a new file.",
+    )
 
 
-@app.post("/api/generate-doc", summary="Create a Google Doc via Apps Script")
-async def generate_doc(body: GenerateDocRequest) -> dict[str, str]:
-    """Send the weekly schedule to the Google Apps Script Web App, which
-    creates a formatted Google Doc and returns its URL.
+@app.post("/api/generate-doc", summary="Create or update Google Doc via Apps Script")
+async def generate_doc(body: GenerateDocRequest) -> dict[str, Optional[str]]:
+    """Send the weekly schedule to Apps Script, which writes **Google Docs**
+    with nested **document tabs** (one tab per calendar week under ``CLC Planner``).
+    Pass ``documentId`` from a prior response to reuse the same file.
 
     Returns:
-      {"docUrl": "https://docs.google.com/document/d/..."}
+      ``docUrl``, ``documentId`` (for localStorage / next requests).
     """
-    script_url = _get_env("APPS_SCRIPT_URL")
+    script_url = _get_env("APPS_SCRIPT_URL").strip()
 
     try:
-        doc_url = await send_to_apps_script(script_url, body.model_dump())
+        result = await send_to_apps_script(
+            script_url, body.model_dump(by_alias=True, exclude_none=True)
+        )
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=502,
@@ -143,12 +180,17 @@ async def generate_doc(body: GenerateDocRequest) -> dict[str, str]:
     except httpx.RequestError as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"Could not reach Apps Script Web App: {exc}",
+            detail=(
+                f"Could not reach Apps Script Web App: {exc}. "
+                "Check APPS_SCRIPT_URL in backend/.env matches Deploy → Manage deployments "
+                "(ends with /exec), deployment access is “Anyone”, no VPN/firewall blocking "
+                "script.google.com, then restart uvicorn."
+            ),
         )
     except ValueError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
-    return {"docUrl": doc_url}
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -158,3 +200,13 @@ async def generate_doc(body: GenerateDocRequest) -> dict[str, str]:
 @app.get("/health", summary="Health check")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# Serve the static frontend from the same origin as the API (avoids file:// + fetch issues).
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+if _FRONTEND_DIR.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(_FRONTEND_DIR), html=True),
+        name="frontend",
+    )

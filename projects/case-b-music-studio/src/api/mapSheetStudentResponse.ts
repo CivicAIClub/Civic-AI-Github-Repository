@@ -33,6 +33,12 @@ const LESSON_AVAILABILITY_KEY_CANDIDATES: readonly string[] = [
   "Lesson Availability/Preferable Time",
   "Lesson Availability/ Preferred Time",
   "Lesson Availability / Preferred Time",
+  // Historical typo from the original Google Form ("Availablity" — missing
+  // the second "i"). Existing form-response rows still carry it; keep the
+  // exact-match fast path so we don't fall through to the heuristic.
+  "Lesson Availablity/ Preferable Time",
+  "Lesson Availablity / Preferable Time",
+  "Lesson Availablity/Preferable Time",
 ];
 
 /** Exact Google Form / Sheet column titles */

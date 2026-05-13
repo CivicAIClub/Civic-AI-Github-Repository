@@ -37,20 +37,34 @@ export type ScheduledLesson = {
   lessonFocus: string;
   /** From sheet column "Note" or "Notes" */
   note: string;
+  /**
+   * Phase 2: Google Calendar event ID once the lesson has been
+   * auto-scheduled. Empty string when the lesson is still pending.
+   * Auto-populated by the `create-event` Apps Script action.
+   */
+  calendarEventId: string;
 };
 
-export type ResourceCategory =
-  | "sheet-music"
-  | "exercises"
-  | "warmups"
-  | "technique"
-  | "theory"
-  | "student-specific";
-
-export type ResourceItem = {
-  id: string;
-  title: string;
-  category: ResourceCategory;
-  description: string;
-  tags?: string[];
+/**
+ * Phase 5: structured teacher recap for one lesson row. Keyed by the
+ * same composite (studentEmail, lessonDate, startTime) used by
+ * Phase 2's calendar actions, so a recap binds permanently to the
+ * lesson instance it was written for.
+ *
+ * The four body fields are plain multiline text — line breaks are
+ * preserved by the renderer (CSS `white-space: pre-wrap`). The
+ * "Hi {Name}," opener is rendered automatically from the student
+ * roster name; the teacher only types the rest of the greeting.
+ */
+export type LessonRecap = {
+  studentEmail: string;
+  studentName: string;
+  lessonDate: string;
+  startTime: string;
+  greeting: string;
+  todayWe: string;
+  homework: string;
+  nextClass: string;
+  /** ISO timestamp from the spreadsheet's TZ (set server-side on save). */
+  updatedAt: string;
 };

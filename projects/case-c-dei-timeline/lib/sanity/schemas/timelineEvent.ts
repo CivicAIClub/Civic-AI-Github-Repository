@@ -68,12 +68,6 @@ const timelineEvent = {
       ],
     },
     {
-      name: 'relatedChapelVoice',
-      title: 'Related Chapel Voice',
-      type: 'reference',
-      to: [{ type: 'chapelSpeaker' }],
-    },
-    {
       name: 'relatedProfile',
       title: 'Related Profile',
       type: 'reference',

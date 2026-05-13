@@ -1,0 +1,49 @@
+name: Deploy Case A (AutoPlanner) to GitHub Pages
+
+# Publishes the AutoPlanner static frontend to gh-pages/case-a so each
+# case in this monorepo gets its own independent Pages URL:
+#   https://civicaiclub.github.io/Civic-AI-Github-Repository/case-a/
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "projects/case-a-clc-workflow/frontend/**"
+      - ".github/workflows/deploy-case-a-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Serialise all sub-publishers writing to gh-pages so two case workflows
+# never push at the same moment and clobber each other.
+concurrency:
+  group: gh-pages-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage Case A static site
+        run: |
+          set -eu
+          rm -rf _publish_case_a
+          mkdir -p _publish_case_a
+          cp -R projects/case-a-clc-workflow/frontend/. _publish_case_a/
+          # SPA fallback for refreshes; harmless for this single-page app.
+          cp _publish_case_a/index.html _publish_case_a/404.html
+          : > _publish_case_a/.nojekyll
+
+      - name: Publish to gh-pages /case-a
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./_publish_case_a
+          destination_dir: case-a
+          keep_files: true
+          enable_jekyll: false
+          commit_message: "deploy case-a: ${{ github.sha }}"
