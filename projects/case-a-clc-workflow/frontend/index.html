@@ -1189,7 +1189,12 @@
       if (stored && stored.trim()) return stored.trim().replace(/\/$/, "");
       if (window.location.protocol === "file:") return "http://127.0.0.1:8000";
       const h = window.location.hostname;
-      if (h === "localhost" || h === "127.0.0.1") return "";
+      if (h === "localhost" || h === "127.0.0.1") {
+        // If served from a non-FastAPI port (e.g. VS Code Live Server on 5500),
+        // point explicitly at the FastAPI backend on 8000.
+        if (window.location.port && window.location.port !== "8000") return "http://127.0.0.1:8000";
+        return "";
+      }
       return "";
     }
 

@@ -81,8 +81,8 @@ var HEADER_BG = '#434343';
 var HEADER_FG = '#FFFFFF';
 var DAY_ROW_BG = '#B7B7B7';
 
-var TABLE_HEADERS = ['Day', 'Assignment', 'Course', 'Due Time', 'Priority'];
-var COL_WIDTHS = [55, 175, 100, 65, 73];
+var TABLE_HEADERS = ['Assignment', 'Day', 'Due Time', 'Priority', 'Notes'];
+var COL_WIDTHS = [160, 60, 60, 65, 120];
 
 var BATCH_CHUNK = 45;
 
@@ -632,11 +632,10 @@ function cellParagraphInsertIndex(cell) {
 }
 
 function countPlannerTableRows(days) {
+  var courseGroups = flattenAndGroupByCourse(days);
   var rows = 1;
-  (days || []).forEach(function (dayObj) {
-    var assignments = dayObj.assignments || [];
-    if (!assignments.length) return;
-    rows += 1 + assignments.length;
+  courseGroups.forEach(function (group) {
+    rows += 1 + group.assignments.length;
   });
   return rows;
 }
@@ -674,6 +673,7 @@ function tabBodyHasHeavyContent(tabJson) {
 function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekData) {
   var docProbe = docsGet(docId);
   var tabProbe = findTabJsonById(docProbe, tabId);
+  var notesMap = readExistingNotesFromTab(tabProbe);
   if (tabBodyHasHeavyContent(tabProbe)) {
     docsBatchUpdate(docId, [{ deleteTab: { tabId: tabId } }]);
     var docAfterHeavy = docsGet(docId);
@@ -800,25 +800,23 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
   });
   r++;
 
-  days.forEach(function (dayObj) {
-    var assignments = dayObj.assignments || [];
-    if (!assignments.length) return;
-
+  var courseGroups = flattenAndGroupByCourse(days);
+  courseGroups.forEach(function (group) {
     TABLE_HEADERS.forEach(function (_, c) {
       var cell = tableJson.tableRows[r].tableCells[c];
-      var txt = c === 0 ? dayObj.day || '' : '';
-      inserts.push({ idx: cellParagraphInsertIndex(cell), text: txt });
+      inserts.push({ idx: cellParagraphInsertIndex(cell), text: c === 0 ? group.course : '' });
     });
     r++;
 
-    assignments.forEach(function (a) {
+    group.assignments.forEach(function (a) {
       TABLE_HEADERS.forEach(function (_, c) {
         var cell = tableJson.tableRows[r].tableCells[c];
         var txt = '';
-        if (c === 1) txt = a.assignment || '';
-        else if (c === 2) txt = a.course || '';
-        else if (c === 3) txt = a.due_time || '';
-        else if (c === 4) txt = a.priority || '';
+        if      (c === 0) txt = a.assignment || '';
+        else if (c === 1) txt = a.day || '';
+        else if (c === 2) txt = a.due_time || '';
+        else if (c === 3) txt = a.priority || '';
+        else if (c === 4) txt = (a.url && notesMap[a.url]) ? notesMap[a.url] : '';
         inserts.push({ idx: cellParagraphInsertIndex(cell), text: txt });
       });
       r++;
@@ -888,49 +886,38 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
   }
 
   var rowPtr = 1;
-  days.forEach(function (dayObj) {
-    var assignments = dayObj.assignments || [];
-    if (!assignments.length) return;
+  var courseGroups = flattenAndGroupByCourse(days);
+
+  courseGroups.forEach(function (group) {
+    var courseBgHex = courseColorMap[group.course] || '#EAEDED';
 
     decorReqs.push({
       updateTableCellStyle: {
         tableRange: {
           tableCellLocation: {
             tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
-            rowIndex: rowPtr,
-            columnIndex: 0,
+            rowIndex: rowPtr, columnIndex: 0,
           },
-          rowSpan: 1,
-          columnSpan: TABLE_HEADERS.length,
+          rowSpan: 1, columnSpan: TABLE_HEADERS.length,
         },
-        tableCellStyle: { backgroundColor: optionalColorFromHex(DAY_ROW_BG) },
+        tableCellStyle: { backgroundColor: optionalColorFromHex(courseBgHex) },
         fields: 'backgroundColor',
       },
     });
-
-    var dayCell = tableJson.tableRows[rowPtr].tableCells[0];
-    var dr = getCellTextRange(dayCell);
-    if (dr && dr.endIndex > dr.startIndex) {
+    var courseCell = tableJson.tableRows[rowPtr].tableCells[0];
+    var cr = getCellTextRange(courseCell);
+    if (cr && cr.endIndex > cr.startIndex) {
       decorReqs.push({
         updateTextStyle: {
-          range: {
-            tabId: tabIdForLoc,
-            startIndex: dr.startIndex,
-            endIndex: dr.endIndex,
-          },
-          textStyle: {
-            bold: true,
-            foregroundColor: optionalColorFromHex(DATA_FG),
-          },
+          range: { tabId: tabIdForLoc, startIndex: cr.startIndex, endIndex: cr.endIndex },
+          textStyle: { bold: true, foregroundColor: optionalColorFromHex(DATA_FG) },
           fields: 'bold,foregroundColor',
         },
       });
     }
-
     rowPtr++;
 
-    assignments.forEach(function (a) {
-      var courseBg = courseColorMap[a.course] || '#FFFFFF';
+    group.assignments.forEach(function (a) {
       var priorityBg = PRIORITY_COLORS[a.priority] || '#EEEEEE';
 
       decorReqs.push({
@@ -938,13 +925,11 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
           tableRange: {
             tableCellLocation: {
               tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
-              rowIndex: rowPtr,
-              columnIndex: 0,
+              rowIndex: rowPtr, columnIndex: 0,
             },
-            rowSpan: 1,
-            columnSpan: 4,
+            rowSpan: 1, columnSpan: 3,
           },
-          tableCellStyle: { backgroundColor: optionalColorFromHex(courseBg) },
+          tableCellStyle: { backgroundColor: optionalColorFromHex(courseBgHex) },
           fields: 'backgroundColor',
         },
       });
@@ -953,47 +938,61 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
           tableRange: {
             tableCellLocation: {
               tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
-              rowIndex: rowPtr,
-              columnIndex: 4,
+              rowIndex: rowPtr, columnIndex: 3,
             },
-            rowSpan: 1,
-            columnSpan: 1,
+            rowSpan: 1, columnSpan: 1,
           },
           tableCellStyle: { backgroundColor: optionalColorFromHex(priorityBg) },
           fields: 'backgroundColor',
         },
       });
 
-      var cAssign = tableJson.tableRows[rowPtr].tableCells[1];
-      var cCourse = tableJson.tableRows[rowPtr].tableCells[2];
-      var cTime = tableJson.tableRows[rowPtr].tableCells[3];
-      var cPri = tableJson.tableRows[rowPtr].tableCells[4];
+      var cAssign = tableJson.tableRows[rowPtr].tableCells[0];
+      var cDay    = tableJson.tableRows[rowPtr].tableCells[1];
+      var cTime   = tableJson.tableRows[rowPtr].tableCells[2];
+      var cPri    = tableJson.tableRows[rowPtr].tableCells[3];
+      var cNotes  = tableJson.tableRows[rowPtr].tableCells[4];
 
-      ;[cAssign, cCourse, cTime].forEach(function (cell) {
+      // Notes column: white background so it's visually distinct and editable
+      decorReqs.push({
+        updateTableCellStyle: {
+          tableRange: {
+            tableCellLocation: {
+              tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
+              rowIndex: rowPtr, columnIndex: 4,
+            },
+            rowSpan: 1, columnSpan: 1,
+          },
+          tableCellStyle: { backgroundColor: optionalColorFromHex('#FFFFFF') },
+          fields: 'backgroundColor',
+        },
+      });
+
+      var rAssign = getCellTextRange(cAssign);
+      if (rAssign && rAssign.endIndex > rAssign.startIndex) {
+        var tsAssign = { foregroundColor: optionalColorFromHex(DATA_FG) };
+        var fieldsAssign = 'foregroundColor';
+        if (a.url) {
+          tsAssign.link = { url: a.url };
+          tsAssign.foregroundColor = optionalColorFromHex(LINK_FG);
+          fieldsAssign = 'foregroundColor,link';
+        }
+        decorReqs.push({
+          updateTextStyle: {
+            range: { tabId: tabIdForLoc, startIndex: rAssign.startIndex, endIndex: rAssign.endIndex },
+            textStyle: tsAssign, fields: fieldsAssign,
+          },
+        });
+      }
+
+      [cDay, cTime].forEach(function (cell) {
         var rg = getCellTextRange(cell);
         if (rg && rg.endIndex > rg.startIndex) {
-          var ts = {
-            foregroundColor: optionalColorFromHex(DATA_FG),
-          };
-          var fields = 'foregroundColor';
-          if (cell === cCourse) {
-            ts.bold = true;
-            fields = 'foregroundColor,bold';
-          }
-          if (cell === cAssign && a.url) {
-            ts.link = { url: a.url };
-            ts.foregroundColor = optionalColorFromHex(LINK_FG);
-            fields = 'foregroundColor,link';
-          }
           decorReqs.push({
             updateTextStyle: {
-              range: {
-                tabId: tabIdForLoc,
-                startIndex: rg.startIndex,
-                endIndex: rg.endIndex,
-              },
-              textStyle: ts,
-              fields: fields,
+              range: { tabId: tabIdForLoc, startIndex: rg.startIndex, endIndex: rg.endIndex },
+              textStyle: { foregroundColor: optionalColorFromHex(DATA_FG) },
+              fields: 'foregroundColor',
             },
           });
         }
@@ -1003,11 +1002,18 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
       if (pr && pr.endIndex > pr.startIndex) {
         decorReqs.push({
           updateTextStyle: {
-            range: {
-              tabId: tabIdForLoc,
-              startIndex: pr.startIndex,
-              endIndex: pr.endIndex,
-            },
+            range: { tabId: tabIdForLoc, startIndex: pr.startIndex, endIndex: pr.endIndex },
+            textStyle: { foregroundColor: optionalColorFromHex(DATA_FG) },
+            fields: 'foregroundColor',
+          },
+        });
+      }
+
+      var rn = getCellTextRange(cNotes);
+      if (rn && rn.endIndex > rn.startIndex) {
+        decorReqs.push({
+          updateTextStyle: {
+            range: { tabId: tabIdForLoc, startIndex: rn.startIndex, endIndex: rn.endIndex },
             textStyle: { foregroundColor: optionalColorFromHex(DATA_FG) },
             fields: 'foregroundColor',
           },
@@ -1085,4 +1091,88 @@ function hashString(str) {
     hash = (hash * 31 + s.charCodeAt(i)) & 0x7fffffff;
   }
   return hash;
+}
+
+function getCellText(cell) {
+  var text = '';
+  (cell.content || []).forEach(function (se) {
+    if (!se.paragraph) return;
+    (se.paragraph.elements || []).forEach(function (pe) {
+      if (pe.textRun) text += (pe.textRun.content || '');
+    });
+  });
+  return text.replace(/\n$/, '').trim();
+}
+
+function getCellLinkUrl(cell) {
+  var url = null;
+  (cell.content || []).forEach(function (se) {
+    if (!se.paragraph || url) return;
+    (se.paragraph.elements || []).forEach(function (pe) {
+      if (!url && pe.textRun && pe.textRun.textStyle && pe.textRun.textStyle.link) {
+        url = pe.textRun.textStyle.link.url || null;
+      }
+    });
+  });
+  return url;
+}
+
+function readExistingNotesFromTab(tabJson) {
+  var notesMap = {};
+  try {
+    if (!tabJson || !tabJson.documentTab) return notesMap;
+    var content = tabJson.documentTab.body.content || [];
+    var tableStruct = null;
+    for (var i = content.length - 1; i >= 0; i--) {
+      if (content[i].table) { tableStruct = content[i].table; break; }
+    }
+    if (!tableStruct) return notesMap;
+    var numCols = tableStruct.columns;
+    // Only read notes when the table already has the Notes column (TABLE_HEADERS.length columns)
+    if (numCols < TABLE_HEADERS.length) return notesMap;
+    var notesColIdx = numCols - 1;
+    (tableStruct.tableRows || []).forEach(function (row) {
+      var cells = row.tableCells || [];
+      if (cells.length < numCols) return;
+      var url = getCellLinkUrl(cells[0]);
+      if (!url) return; // header row or course header row — no link
+      var note = getCellText(cells[notesColIdx]);
+      if (note) notesMap[url] = note;
+    });
+  } catch (e) {}
+  return notesMap;
+}
+
+function flattenAndGroupByCourse(days) {
+  var all = [];
+  (days || []).forEach(function (dayObj) {
+    (dayObj.assignments || []).forEach(function (a) { all.push(a); });
+  });
+
+  var courseOrder = [];
+  var groups = {};
+  all.forEach(function (a) {
+    var course = a.course || '(No Course)';
+    if (!groups[course]) { groups[course] = []; courseOrder.push(course); }
+    groups[course].push(a);
+  });
+
+  courseOrder.forEach(function (course) {
+    groups[course].sort(function (a, b) {
+      var da = String(a.due_date || ''), db = String(b.due_date || '');
+      if (da !== db) return da < db ? -1 : 1;
+      return String(a.assignment || '').toLowerCase() < String(b.assignment || '').toLowerCase() ? -1 : 1;
+    });
+  });
+
+  courseOrder.sort(function (cA, cB) {
+    var minA = groups[cA][0] ? String(groups[cA][0].due_date || '') : '';
+    var minB = groups[cB][0] ? String(groups[cB][0].due_date || '') : '';
+    if (minA !== minB) return minA < minB ? -1 : 1;
+    return cA.localeCompare(cB);
+  });
+
+  return courseOrder.map(function (course) {
+    return { course: course, assignments: groups[course] };
+  });
 }
