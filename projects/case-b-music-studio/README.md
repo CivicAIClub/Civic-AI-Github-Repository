@@ -18,7 +18,7 @@ Build a **Music Student Profile** experience (roster, inline profiles, schedules
 ## Team
 | Role | Name |
 |------|------|
-| Developer | Serena Zhang |
+| Developer | Serena Xu |
 | Developer | JT Gannon |
 
 ## Setup
