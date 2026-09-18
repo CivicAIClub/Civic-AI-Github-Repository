@@ -727,6 +727,28 @@
       line-height: 1.55;
     }
 
+    /* ---------- Bulk actions strip (preview card) ---------- */
+    .bulk-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.85rem 1rem;
+      padding: 0.95rem 1.05rem;
+      margin: 0 0 1rem;
+      background: var(--accent-soft);
+      border: 1px solid rgba(99, 102, 241, 0.22);
+      border-radius: var(--radius);
+    }
+    .bulk-actions[hidden] { display: none; }
+    .bulk-meta {
+      color: var(--accent-text);
+      font-size: 0.86rem;
+      flex: 1;
+      min-width: 14rem;
+    }
+    .bulk-actions .status { margin: 0; flex-basis: 100%; }
+    .bulk-actions .status:empty { display: none; }
+
     /* ---------- Schedule card ---------- */
     .switch-row {
       display: flex;
@@ -1136,6 +1158,11 @@
         <h2>Preview &amp; Google Doc</h2>
         <span class="card-sub">Switch students with the tabs</span>
       </div>
+      <div class="bulk-actions" id="bulkActions" hidden>
+        <button type="button" class="btn-primary" id="updateAllBtn">Update all students' Docs</button>
+        <span class="bulk-meta" id="bulkMeta">Refreshes every successfully-fetched student in one go.</span>
+        <p class="status" id="bulkStatus"></p>
+      </div>
       <div class="tabs-scroll" id="tabList" role="tablist" aria-label="Students"></div>
       <div id="tabPanels"></div>
     </section>
@@ -1414,7 +1441,10 @@
       if (activeStudentId === id) activeStudentId = null;
       renderStudentList();
       if (Object.keys(resultsById).length) renderTabsAndPanels();
-      else document.getElementById("previewCard").classList.remove("visible");
+      else {
+        document.getElementById("previewCard").classList.remove("visible");
+        refreshBulkActionsStrip();
+      }
     }
 
     function escAttr(s) {
@@ -1527,6 +1557,7 @@
       setBtnDisabled("fetchBtn", true);
       document.getElementById("previewCard").classList.remove("visible");
       resultsById = {};
+      refreshBulkActionsStrip();
 
       const qBase = new URLSearchParams({
         weeks_ahead: String(weeksAhead),
@@ -1578,6 +1609,7 @@
     }
 
     document.getElementById("fetchBtn").addEventListener("click", fetchAssignments);
+    document.getElementById("updateAllBtn").addEventListener("click", updateAllDocs);
 
     function renderTabsAndPanels() {
       const tabList = document.getElementById("tabList");
@@ -1660,6 +1692,7 @@
       });
 
       syncTabSelection();
+      refreshBulkActionsStrip();
     }
 
     function syncTabSelection() {
@@ -2039,6 +2072,81 @@
       input.value = "";
       setScheduleStatus("", "");
       renderScheduleUI();
+    }
+
+    let bulkUpdateRunning = false;
+
+    function setBulkStatus(type, message) {
+      const el = document.getElementById("bulkStatus");
+      if (!el) return;
+      el.className = "status " + (type || "");
+      el.textContent = message || "";
+    }
+
+    function refreshBulkActionsStrip() {
+      const strip = document.getElementById("bulkActions");
+      if (!strip) return;
+      const successIds = roster
+        .filter((r) => resultsById[r.id] && resultsById[r.id].schedule)
+        .map((r) => r.id);
+      if (!successIds.length) {
+        strip.hidden = true;
+        return;
+      }
+      strip.hidden = false;
+      const btn = document.getElementById("updateAllBtn");
+      if (btn && !bulkUpdateRunning) {
+        btn.textContent =
+          successIds.length === 1
+            ? "Update this student's Doc"
+            : `Update all ${successIds.length} students' Docs`;
+      }
+    }
+
+    async function updateAllDocs() {
+      if (bulkUpdateRunning) return;
+      const successIds = roster
+        .filter((r) => resultsById[r.id] && resultsById[r.id].schedule)
+        .map((r) => r.id);
+      if (!successIds.length) {
+        setBulkStatus("error", "No fetched students to update.");
+        return;
+      }
+      if (isStaticHost() && !apiBase()) {
+        setBulkStatus("error", "Set AutoPlanner API URL first.");
+        return;
+      }
+
+      bulkUpdateRunning = true;
+      const btn = document.getElementById("updateAllBtn");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = `Updating 0 of ${successIds.length}…`;
+      }
+
+      let done = 0;
+      for (const sid of successIds) {
+        done++;
+        const name = tabTitleFor(sid);
+        if (btn) btn.textContent = `Updating ${done} of ${successIds.length}: ${name}…`;
+        setBulkStatus(
+          "loading",
+          `Updating Doc for ${name} (${done} of ${successIds.length})…`
+        );
+        try {
+          await generateDoc(sid);
+        } catch (_) {
+          /* per-panel status surfaces the actual error */
+        }
+      }
+
+      bulkUpdateRunning = false;
+      setBulkStatus(
+        "success",
+        `Done — refreshed ${successIds.length} student Doc(s). Check each tab for any errors.`
+      );
+      if (btn) btn.disabled = false;
+      refreshBulkActionsStrip();
     }
 
     async function runScheduledJob() {

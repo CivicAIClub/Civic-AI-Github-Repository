@@ -81,8 +81,24 @@ var HEADER_BG = '#434343';
 var HEADER_FG = '#FFFFFF';
 var DAY_ROW_BG = '#B7B7B7';
 
-var TABLE_HEADERS = ['Assignment', 'Day', 'Due Time', 'Priority', 'Notes'];
-var COL_WIDTHS = [160, 60, 60, 65, 120];
+/**
+ * Each week tab now contains TWO stacked tables:
+ *   - "By Class": assignments grouped by course, with a Day column for context.
+ *   - "By Day":   assignments grouped by day, with a Course column for context.
+ * Both tables include Status (manually edited, default ⬜ Not started) and Notes.
+ * Status + Notes are preserved across re-runs by Canvas assignment URL.
+ */
+var BY_CLASS_HEADERS = ['Assignment', 'Day', 'Due Time', 'Priority', 'Status', 'Notes'];
+var BY_CLASS_WIDTHS  = [160, 50, 55, 65, 80, 100];
+
+var BY_DAY_HEADERS   = ['Assignment', 'Course', 'Due Time', 'Priority', 'Status', 'Notes'];
+var BY_DAY_WIDTHS    = [160, 95, 55, 65, 80, 100];
+
+/* Default value for new Status cells. Teacher edits to "🟡 In progress" or "✅ Complete". */
+var STATUS_DEFAULT = '⬜ Not started';
+
+/* White background marks columns the teacher manually edits (Status, Notes). */
+var EDITABLE_BG = '#FFFFFF';
 
 var BATCH_CHUNK = 45;
 
@@ -631,13 +647,20 @@ function cellParagraphInsertIndex(cell) {
   throw new Error('Table cell has no paragraph (unexpected).');
 }
 
-function countPlannerTableRows(days) {
-  var courseGroups = flattenAndGroupByCourse(days);
-  var rows = 1;
-  courseGroups.forEach(function (group) {
-    rows += 1 + group.assignments.length;
-  });
-  return rows;
+/** Find the paragraph in a tab body whose plain text matches `text` (newline-trimmed). */
+function findParagraphByText(tabJson, text) {
+  if (!tabJson || !tabJson.documentTab || !tabJson.documentTab.body) return null;
+  var content = tabJson.documentTab.body.content || [];
+  for (var i = 0; i < content.length; i++) {
+    var p = content[i].paragraph;
+    if (!p) continue;
+    var t = '';
+    (p.elements || []).forEach(function (el) {
+      if (el.textRun && el.textRun.content) t += el.textRun.content;
+    });
+    if (t.replace(/\n+$/, '').trim() === text) return content[i];
+  }
+  return null;
 }
 
 function getCellTextRange(cell) {
@@ -673,7 +696,8 @@ function tabBodyHasHeavyContent(tabJson) {
 function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekData) {
   var docProbe = docsGet(docId);
   var tabProbe = findTabJsonById(docProbe, tabId);
-  var notesMap = readExistingNotesFromTab(tabProbe);
+  var savedData = readExistingDataFromTab(tabProbe);
+
   if (tabBodyHasHeavyContent(tabProbe)) {
     docsBatchUpdate(docId, [{ deleteTab: { tabId: tabId } }]);
     var docAfterHeavy = docsGet(docId);
@@ -703,30 +727,16 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
 
   var days = weekData.days || [];
   var weekHeading = 'Week of ' + (weekData.week_label || weekKey);
-  var subtitle =
-    'Assignments in this week: ' + countAssignmentsInWeek(days);
+  var subtitle = 'Assignments in this week: ' + countAssignmentsInWeek(days);
 
   docsBatchUpdate(docId, [
-    {
-      insertText: {
-        text: weekHeading + '\n',
-        endOfSegmentLocation: { tabId: tabId },
-      },
-    },
-    {
-      insertText: {
-        text: subtitle + '\n',
-        endOfSegmentLocation: { tabId: tabId },
-      },
-    },
-    {
-      insertText: {
-        text: '\n',
-        endOfSegmentLocation: { tabId: tabId },
-      },
-    },
+    { insertText: { text: weekHeading + '\n', endOfSegmentLocation: { tabId: tabId } } },
+    { insertText: { text: subtitle + '\n',    endOfSegmentLocation: { tabId: tabId } } },
+    { insertText: { text: '\n',                endOfSegmentLocation: { tabId: tabId } } },
   ]);
 
+  // Style week heading + subtitle. The tab was just cleared/created, so the first two
+  // paragraphs ARE the ones we just inserted.
   var doc = docsGet(docId);
   var tab = findTabJsonById(doc, tabId);
   var paras = tab.documentTab.body.content || [];
@@ -734,16 +744,11 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
   var pSub = paras[1];
   var styleReqs = [];
   var titleBounds = pTitle && pTitle.paragraph ? structuralContentBounds(pTitle) : null;
-  var subBounds = pSub && pSub.paragraph ? structuralContentBounds(pSub) : null;
+  var subBounds   = pSub   && pSub.paragraph   ? structuralContentBounds(pSub)   : null;
   if (titleBounds) {
     styleReqs.push({
       updateParagraphStyle: {
-        range: {
-          segmentId: '',
-          tabId: tabId,
-          startIndex: titleBounds.start,
-          endIndex: titleBounds.end,
-        },
+        range: { segmentId: '', tabId: tabId, startIndex: titleBounds.start, endIndex: titleBounds.end },
         paragraphStyle: { namedStyleType: 'HEADING_2' },
         fields: 'namedStyleType',
       },
@@ -752,85 +757,130 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
   if (subBounds) {
     styleReqs.push({
       updateTextStyle: {
-        range: {
-          segmentId: '',
-          tabId: tabId,
-          startIndex: subBounds.start,
-          endIndex: subBounds.end,
-        },
+        range: { segmentId: '', tabId: tabId, startIndex: subBounds.start, endIndex: subBounds.end },
         textStyle: { italic: true, foregroundColor: optionalColorFromHex(DATA_FG) },
         fields: 'italic,foregroundColor',
       },
     });
   }
-  if (styleReqs.length) {
-    docsBatchUpdate(docId, styleReqs);
+  if (styleReqs.length) docsBatchUpdate(docId, styleReqs);
+
+  if (countAssignmentsInWeek(days) === 0) return;
+
+  var courseColorMap = buildCourseColorMap(days);
+
+  // Two stacked tables: By Class first, then By Day.
+  // Both share courseColorMap so the same course is the same color in both views.
+  writeTableSection(docId, tabId, 'By Class', 'class', days, courseColorMap, savedData);
+  writeTableSection(docId, tabId, 'By Day',   'day',   days, courseColorMap, savedData);
+}
+
+/**
+ * Append a section heading + table to a week tab.
+ *
+ * @param mode 'class' (group by course, Day in col 1) or 'day' (group by day, Course in col 1).
+ * @param savedData {notes: {url:text}, status: {url:text}} preserved from previous run.
+ *
+ * Layout invariants for both modes:
+ *   col 0: Assignment (link)
+ *   col 1: Day (class mode) or Course (day mode)
+ *   col 2: Due Time
+ *   col 3: Priority
+ *   col 4: Status (white bg, editable, defaults to STATUS_DEFAULT)
+ *   col 5: Notes  (white bg, editable, blank by default)
+ */
+function writeTableSection(docId, tabId, sectionTitle, mode, days, courseColorMap, savedData) {
+  var headers = (mode === 'class') ? BY_CLASS_HEADERS : BY_DAY_HEADERS;
+  var widths  = (mode === 'class') ? BY_CLASS_WIDTHS  : BY_DAY_WIDTHS;
+  var groups  = (mode === 'class') ? flattenAndGroupByCourse(days) : flattenAndGroupByDay(days);
+
+  // 1. Insert section heading paragraph.
+  docsBatchUpdate(docId, [
+    { insertText: { text: sectionTitle + '\n', endOfSegmentLocation: { tabId: tabId } } },
+  ]);
+
+  // 2. Style the section heading as HEADING_3. Find by text since it's now embedded mid-tab.
+  var doc = docsGet(docId);
+  var tab = findTabJsonById(doc, tabId);
+  var headingPara = findParagraphByText(tab, sectionTitle);
+  var headBounds = headingPara && headingPara.paragraph ? structuralContentBounds(headingPara) : null;
+  if (headBounds) {
+    docsBatchUpdate(docId, [
+      {
+        updateParagraphStyle: {
+          range: { segmentId: '', tabId: tabId, startIndex: headBounds.start, endIndex: headBounds.end },
+          paragraphStyle: { namedStyleType: 'HEADING_3' },
+          fields: 'namedStyleType',
+        },
+      },
+    ]);
   }
 
-  var numRows = countPlannerTableRows(days);
-  if (numRows <= 1) {
-    return;
-  }
+  // 3. Calculate row count: 1 header + per group (1 group-header + N assignments).
+  var numRows = 1;
+  groups.forEach(function (g) { numRows += 1 + g.assignments.length; });
+  if (numRows <= 1) return;
 
+  // 4. Insert table at end of segment.
   docsBatchUpdate(docId, [
     {
       insertTable: {
         rows: numRows,
-        columns: TABLE_HEADERS.length,
+        columns: headers.length,
         endOfSegmentLocation: { tabId: tabId },
       },
     },
   ]);
 
+  // 5. Re-fetch to find the new table (always the LAST table now since insertTable appended).
   doc = docsGet(docId);
   var tblWrap = findLastTableStructInTab(doc, tabId);
   if (!tblWrap || !tblWrap.table || !tblWrap.table.tableRows) {
-    throw new Error('insertTable failed — table not found after insert.');
+    throw new Error('insertTable failed for ' + sectionTitle);
   }
   var tableJson = tblWrap.table;
   var tableStartIndex = tblWrap.startIndex;
   var tabIdForLoc = tabId;
 
+  // 6. Build text inserts for every cell. Header row first, then groups.
   var inserts = [];
   var r = 0;
 
-  TABLE_HEADERS.forEach(function (h, c) {
+  headers.forEach(function (h, c) {
     var cell = tableJson.tableRows[r].tableCells[c];
     inserts.push({ idx: cellParagraphInsertIndex(cell), text: String(h) });
   });
   r++;
 
-  var courseGroups = flattenAndGroupByCourse(days);
-  courseGroups.forEach(function (group) {
-    TABLE_HEADERS.forEach(function (_, c) {
+  groups.forEach(function (group) {
+    var groupLabel = (mode === 'class') ? group.course : group.day;
+    headers.forEach(function (_, c) {
       var cell = tableJson.tableRows[r].tableCells[c];
-      inserts.push({ idx: cellParagraphInsertIndex(cell), text: c === 0 ? group.course : '' });
+      inserts.push({ idx: cellParagraphInsertIndex(cell), text: c === 0 ? groupLabel : '' });
     });
     r++;
 
     group.assignments.forEach(function (a) {
-      TABLE_HEADERS.forEach(function (_, c) {
+      headers.forEach(function (_, c) {
         var cell = tableJson.tableRows[r].tableCells[c];
         var txt = '';
         if      (c === 0) txt = a.assignment || '';
-        else if (c === 1) txt = a.day || '';
+        else if (c === 1) txt = (mode === 'class') ? (a.day || '') : (a.course || '');
         else if (c === 2) txt = a.due_time || '';
         else if (c === 3) txt = a.priority || '';
-        else if (c === 4) txt = (a.url && notesMap[a.url]) ? notesMap[a.url] : '';
+        else if (c === 4) txt = (a.url && savedData.status[a.url]) ? savedData.status[a.url] : STATUS_DEFAULT;
+        else if (c === 5) txt = (a.url && savedData.notes[a.url])  ? savedData.notes[a.url]  : '';
         inserts.push({ idx: cellParagraphInsertIndex(cell), text: txt });
       });
       r++;
     });
   });
 
-  inserts.sort(function (a, b) {
-    return b.idx - a.idx;
-  });
+  // Sort descending so earlier inserts don't shift later indices.
+  inserts.sort(function (a, b) { return b.idx - a.idx; });
 
   var insertReqs = inserts
-    .filter(function (it) {
-      return String(it.text || '').length > 0;
-    })
+    .filter(function (it) { return String(it.text || '').length > 0; })
     .map(function (it) {
       return {
         insertText: {
@@ -841,55 +891,48 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
     });
   batchUpdateChunked(docId, insertReqs);
 
+  // 7. Re-fetch table for styling (text inserts shift cell ranges).
   doc = docsGet(docId);
   tblWrap = findLastTableStructInTab(doc, tabId);
   tableJson = tblWrap.table;
 
-  var courseColorMap = buildCourseColorMap(days);
   var decorReqs = [];
 
+  // Header row: dark bg + white bold text across all columns.
   decorReqs.push({
     updateTableCellStyle: {
       tableRange: {
         tableCellLocation: {
           tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
-          rowIndex: 0,
-          columnIndex: 0,
+          rowIndex: 0, columnIndex: 0,
         },
-        rowSpan: 1,
-        columnSpan: TABLE_HEADERS.length,
+        rowSpan: 1, columnSpan: headers.length,
       },
       tableCellStyle: { backgroundColor: optionalColorFromHex(HEADER_BG) },
       fields: 'backgroundColor',
     },
   });
-
-  for (var c = 0; c < TABLE_HEADERS.length; c++) {
+  for (var c = 0; c < headers.length; c++) {
     var hCell = tableJson.tableRows[0].tableCells[c];
     var hr = getCellTextRange(hCell);
     if (hr && hr.endIndex > hr.startIndex) {
       decorReqs.push({
         updateTextStyle: {
-          range: {
-            tabId: tabIdForLoc,
-            startIndex: hr.startIndex,
-            endIndex: hr.endIndex,
-          },
-          textStyle: {
-            bold: true,
-            foregroundColor: optionalColorFromHex(HEADER_FG),
-          },
+          range: { tabId: tabIdForLoc, startIndex: hr.startIndex, endIndex: hr.endIndex },
+          textStyle: { bold: true, foregroundColor: optionalColorFromHex(HEADER_FG) },
           fields: 'bold,foregroundColor',
         },
       });
     }
   }
 
+  // Group-header rows + assignment rows.
   var rowPtr = 1;
-  var courseGroups = flattenAndGroupByCourse(days);
-
-  courseGroups.forEach(function (group) {
-    var courseBgHex = courseColorMap[group.course] || '#EAEDED';
+  groups.forEach(function (group) {
+    // Group-header background: course color in class mode, gray in day mode.
+    var groupBgHex = (mode === 'class')
+      ? (courseColorMap[group.course] || '#EAEDED')
+      : DAY_ROW_BG;
 
     decorReqs.push({
       updateTableCellStyle: {
@@ -898,14 +941,14 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
             tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
             rowIndex: rowPtr, columnIndex: 0,
           },
-          rowSpan: 1, columnSpan: TABLE_HEADERS.length,
+          rowSpan: 1, columnSpan: headers.length,
         },
-        tableCellStyle: { backgroundColor: optionalColorFromHex(courseBgHex) },
+        tableCellStyle: { backgroundColor: optionalColorFromHex(groupBgHex) },
         fields: 'backgroundColor',
       },
     });
-    var courseCell = tableJson.tableRows[rowPtr].tableCells[0];
-    var cr = getCellTextRange(courseCell);
+    var groupCell = tableJson.tableRows[rowPtr].tableCells[0];
+    var cr = getCellTextRange(groupCell);
     if (cr && cr.endIndex > cr.startIndex) {
       decorReqs.push({
         updateTextStyle: {
@@ -918,6 +961,9 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
     rowPtr++;
 
     group.assignments.forEach(function (a) {
+      // Per-row colors: course color tints first 3 cols (regardless of mode), priority color
+      // tints col 3, Status + Notes get white bg to signal "edit me".
+      var rowBgHex   = courseColorMap[a.course] || '#EAEDED';
       var priorityBg = PRIORITY_COLORS[a.priority] || '#EEEEEE';
 
       decorReqs.push({
@@ -929,7 +975,7 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
             },
             rowSpan: 1, columnSpan: 3,
           },
-          tableCellStyle: { backgroundColor: optionalColorFromHex(courseBgHex) },
+          tableCellStyle: { backgroundColor: optionalColorFromHex(rowBgHex) },
           fields: 'backgroundColor',
         },
       });
@@ -946,14 +992,7 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
           fields: 'backgroundColor',
         },
       });
-
-      var cAssign = tableJson.tableRows[rowPtr].tableCells[0];
-      var cDay    = tableJson.tableRows[rowPtr].tableCells[1];
-      var cTime   = tableJson.tableRows[rowPtr].tableCells[2];
-      var cPri    = tableJson.tableRows[rowPtr].tableCells[3];
-      var cNotes  = tableJson.tableRows[rowPtr].tableCells[4];
-
-      // Notes column: white background so it's visually distinct and editable
+      // Status + Notes (cols 4 and 5): white background, editable.
       decorReqs.push({
         updateTableCellStyle: {
           tableRange: {
@@ -961,13 +1000,21 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
               tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
               rowIndex: rowPtr, columnIndex: 4,
             },
-            rowSpan: 1, columnSpan: 1,
+            rowSpan: 1, columnSpan: 2,
           },
-          tableCellStyle: { backgroundColor: optionalColorFromHex('#FFFFFF') },
+          tableCellStyle: { backgroundColor: optionalColorFromHex(EDITABLE_BG) },
           fields: 'backgroundColor',
         },
       });
 
+      var cAssign = tableJson.tableRows[rowPtr].tableCells[0];
+      var cMid    = tableJson.tableRows[rowPtr].tableCells[1]; // Day (class) or Course (day)
+      var cTime   = tableJson.tableRows[rowPtr].tableCells[2];
+      var cPri    = tableJson.tableRows[rowPtr].tableCells[3];
+      var cStatus = tableJson.tableRows[rowPtr].tableCells[4];
+      var cNotes  = tableJson.tableRows[rowPtr].tableCells[5];
+
+      // Assignment cell: link styling if URL present, else dark text.
       var rAssign = getCellTextRange(cAssign);
       if (rAssign && rAssign.endIndex > rAssign.startIndex) {
         var tsAssign = { foregroundColor: optionalColorFromHex(DATA_FG) };
@@ -985,7 +1032,8 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
         });
       }
 
-      [cDay, cTime].forEach(function (cell) {
+      // All other cells: dark text on whatever background was set above.
+      [cMid, cTime, cPri, cStatus, cNotes].forEach(function (cell) {
         var rg = getCellTextRange(cell);
         if (rg && rg.endIndex > rg.startIndex) {
           decorReqs.push({
@@ -998,49 +1046,35 @@ function fillWeekTabDocsApi(docId, parentTabId, tabTitle, tabId, weekKey, weekDa
         }
       });
 
-      var pr = getCellTextRange(cPri);
-      if (pr && pr.endIndex > pr.startIndex) {
-        decorReqs.push({
-          updateTextStyle: {
-            range: { tabId: tabIdForLoc, startIndex: pr.startIndex, endIndex: pr.endIndex },
-            textStyle: { foregroundColor: optionalColorFromHex(DATA_FG) },
-            fields: 'foregroundColor',
-          },
-        });
-      }
-
-      var rn = getCellTextRange(cNotes);
-      if (rn && rn.endIndex > rn.startIndex) {
-        decorReqs.push({
-          updateTextStyle: {
-            range: { tabId: tabIdForLoc, startIndex: rn.startIndex, endIndex: rn.endIndex },
-            textStyle: { foregroundColor: optionalColorFromHex(DATA_FG) },
-            fields: 'foregroundColor',
-          },
-        });
-      }
-
       rowPtr++;
     });
   });
 
   batchUpdateChunked(docId, decorReqs);
 
+  // 8. Set fixed column widths so the table doesn't expand to page width.
   var widthReqs = [];
-  for (var wi = 0; wi < COL_WIDTHS.length; wi++) {
+  for (var wi = 0; wi < widths.length; wi++) {
     widthReqs.push({
       updateTableColumnProperties: {
         tableStartLocation: { tabId: tabIdForLoc, index: tableStartIndex },
         columnIndices: [wi],
         tableColumnProperties: {
           widthType: 'FIXED_WIDTH',
-          width: { magnitude: COL_WIDTHS[wi], unit: 'PT' },
+          width: { magnitude: widths[wi], unit: 'PT' },
         },
         fields: 'widthType,width',
       },
     });
   }
   batchUpdateChunked(docId, widthReqs);
+
+  // 9. Trailing blank paragraph for visual breathing room before next section.
+  docsBatchUpdate(docId, [
+    { insertText: { text: '\n', endOfSegmentLocation: { tabId: tabId } } },
+  ]);
+
+  sleepDocsChunkGap();
 }
 
 function buildCourseColorMap(days) {
@@ -1117,30 +1151,42 @@ function getCellLinkUrl(cell) {
   return url;
 }
 
-function readExistingNotesFromTab(tabJson) {
-  var notesMap = {};
+/**
+ * Read all editable data (Notes, Status) from EVERY table in the tab, keyed by Canvas URL.
+ * Walks every table because the new layout has two (By Class + By Day) and old single-table tabs still need to be read for migration.
+ *
+ * Column conventions (Notes = last column, Status = second-to-last):
+ *   - Old 5-col table (Notes only): notes col = 4, no status
+ *   - New 6-col table (Status + Notes): status col = 4, notes col = 5
+ * Tables with < 5 columns are ignored.
+ */
+function readExistingDataFromTab(tabJson) {
+  var result = { notes: {}, status: {} };
   try {
-    if (!tabJson || !tabJson.documentTab) return notesMap;
+    if (!tabJson || !tabJson.documentTab) return result;
     var content = tabJson.documentTab.body.content || [];
-    var tableStruct = null;
-    for (var i = content.length - 1; i >= 0; i--) {
-      if (content[i].table) { tableStruct = content[i].table; break; }
-    }
-    if (!tableStruct) return notesMap;
-    var numCols = tableStruct.columns;
-    // Only read notes when the table already has the Notes column (TABLE_HEADERS.length columns)
-    if (numCols < TABLE_HEADERS.length) return notesMap;
-    var notesColIdx = numCols - 1;
-    (tableStruct.tableRows || []).forEach(function (row) {
-      var cells = row.tableCells || [];
-      if (cells.length < numCols) return;
-      var url = getCellLinkUrl(cells[0]);
-      if (!url) return; // header row or course header row — no link
-      var note = getCellText(cells[notesColIdx]);
-      if (note) notesMap[url] = note;
+    content.forEach(function (el) {
+      if (!el.table) return;
+      var tableStruct = el.table;
+      var numCols = tableStruct.columns;
+      if (numCols < 5) return;
+      var notesColIdx = numCols - 1;
+      var statusColIdx = numCols >= 6 ? numCols - 2 : -1;
+      (tableStruct.tableRows || []).forEach(function (row) {
+        var cells = row.tableCells || [];
+        if (cells.length < numCols) return;
+        var url = getCellLinkUrl(cells[0]);
+        if (!url) return; // header / group-header row — no Canvas link
+        var note = getCellText(cells[notesColIdx]);
+        if (note) result.notes[url] = note;
+        if (statusColIdx >= 0) {
+          var status = getCellText(cells[statusColIdx]);
+          if (status) result.status[url] = status;
+        }
+      });
     });
   } catch (e) {}
-  return notesMap;
+  return result;
 }
 
 function flattenAndGroupByCourse(days) {
@@ -1175,4 +1221,24 @@ function flattenAndGroupByCourse(days) {
   return courseOrder.map(function (course) {
     return { course: course, assignments: groups[course] };
   });
+}
+
+/**
+ * Group assignments by day. Preserves the input day order (already chronological from the backend).
+ * Within each day, sorts by due_time then assignment title.
+ * Skips days with zero assignments to keep the table tight.
+ */
+function flattenAndGroupByDay(days) {
+  var groups = [];
+  (days || []).forEach(function (dayObj) {
+    var assignments = (dayObj.assignments || []).slice();
+    if (!assignments.length) return;
+    assignments.sort(function (a, b) {
+      var ta = String(a.due_time || ''), tb = String(b.due_time || '');
+      if (ta !== tb) return ta < tb ? -1 : 1;
+      return String(a.assignment || '').toLowerCase() < String(b.assignment || '').toLowerCase() ? -1 : 1;
+    });
+    groups.push({ day: dayObj.day || '', assignments: assignments });
+  });
+  return groups;
 }
