@@ -18,7 +18,7 @@ civic-ai-club/
 | Case | Project | Client | Team |
 |------|---------|--------|------|
 | A | CLC Workflow Automation | Supported Study Hall (CLC) | Luke Ryan, Jack Weinberg |
-| B | Music Studio Infrastructure | Mr. O'Neal | Serena Zhang, JT Gannon |
+| B | Music Studio Infrastructure | Mr. O'Neal | Serena Xu, JT Gannon |
 | C | DEI Interactive Timeline | Dr. McCarter | Zahir Williams, Keke Li |
 | D | Roster Export Automation | Mr. Ring | James Lake, Magnus Songhurst |
 
