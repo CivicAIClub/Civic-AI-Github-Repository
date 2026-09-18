@@ -351,7 +351,47 @@ a:hover {
   flex: 1;
   min-height: 0;
   padding: var(--space-6) clamp(var(--space-4), 3vw, var(--space-7))
-    var(--space-7);
+    var(--space-5);
+}
+
+.app-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface-elevated);
+  padding: var(--space-3) clamp(var(--space-4), 3vw, var(--space-7));
+}
+
+.app-footer__text {
+  margin: 0;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.app-footer__label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.app-footer__link {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.78rem;
+  word-break: break-all;
+  color: var(--accent);
+}
+
+.app-footer__link:hover {
+  color: var(--accent-hover);
 }
 
 .page {
@@ -2051,4 +2091,242 @@ a:hover {
 
 .student-folders-sync-card__sync-status {
   margin: var(--space-3) 0 0;
+}
+
+/* Phase 5 — Lesson recap (formatted read-only block) ─────────────── */
+.lesson-recap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.lesson-recap--compact {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-subtle);
+  border-color: var(--accent-border-subtle);
+  font-size: 0.92rem;
+  gap: var(--space-2);
+}
+
+.lesson-recap__header {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+
+.lesson-recap__greeting {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.lesson-recap__greeting-prefix {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.lesson-recap__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.lesson-recap__label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.lesson-recap__body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.lesson-recap__footer {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+/* Phase 5 — Recap editor modal ───────────────────────────────────── */
+.recap-modal-card {
+  /* Modal grows with the four textareas; cap at viewport so it scrolls. */
+  max-width: 720px;
+}
+
+.modal-card__subtitle {
+  margin: 0.15rem 0 0;
+}
+
+.modal-card__subtitle--small {
+  font-size: 0.85rem;
+}
+
+.modal-card__notice--ok {
+  background: var(--status-success-soft);
+  color: var(--status-success);
+}
+
+.recap-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.recap-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.recap-editor__label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: -0.005em;
+}
+
+.recap-editor__hint {
+  font-weight: 400;
+  font-size: 0.82rem;
+}
+
+.recap-editor__hint em {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.recap-editor__textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  min-height: 4em;
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.recap-editor__textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.recap-editor__textarea--short {
+  min-height: 3em;
+}
+
+.recap-editor__textarea:disabled {
+  opacity: 0.6;
+}
+
+/* Phase 5 — Recaps timeline (inside profile panel) ────────────────── */
+.recaps-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recaps-timeline__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recaps-timeline__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.recaps-timeline__item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.recaps-timeline__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.recaps-timeline__toggle,
+.recaps-timeline__write {
+  font-size: 0.82rem;
+  padding: 0.4rem 0.85rem;
+}
+
+.recaps-timeline__edit {
+  font-size: 0.82rem;
+}
+
+.recaps-timeline__expanded {
+  margin-top: var(--space-2);
+}
+
+.recaps-timeline__item--has-recap .recaps-timeline__row {
+  /* Subtle visual cue that this lesson has a recap */
+  /* (handled mostly by the toggle button labeling; no extra style needed) */
+}
+
+/* Phase 5 — Recaps page ──────────────────────────────────────────── */
+.recaps-page__filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.recaps-page__filter-meta {
+  font-size: 0.85rem;
+}
+
+.recaps-page__empty {
+  margin: var(--space-4) 0 0;
+  font-size: 0.95rem;
+}
+
+.recaps-page__groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.recaps-page__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recaps-page__group-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.recaps-page__recaps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
