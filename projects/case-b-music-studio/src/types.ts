@@ -44,3 +44,27 @@ export type ScheduledLesson = {
    */
   calendarEventId: string;
 };
+
+/**
+ * Phase 5: structured teacher recap for one lesson row. Keyed by the
+ * same composite (studentEmail, lessonDate, startTime) used by
+ * Phase 2's calendar actions, so a recap binds permanently to the
+ * lesson instance it was written for.
+ *
+ * The four body fields are plain multiline text — line breaks are
+ * preserved by the renderer (CSS `white-space: pre-wrap`). The
+ * "Hi {Name}," opener is rendered automatically from the student
+ * roster name; the teacher only types the rest of the greeting.
+ */
+export type LessonRecap = {
+  studentEmail: string;
+  studentName: string;
+  lessonDate: string;
+  startTime: string;
+  greeting: string;
+  todayWe: string;
+  homework: string;
+  nextClass: string;
+  /** ISO timestamp from the spreadsheet's TZ (set server-side on save). */
+  updatedAt: string;
+};

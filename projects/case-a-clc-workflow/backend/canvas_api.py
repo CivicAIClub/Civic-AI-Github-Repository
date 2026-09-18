@@ -25,7 +25,7 @@ Example assignment object (abbreviated):
 """
 
 import re
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -34,7 +34,7 @@ def _build_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _paginate(token: str, url: str, params: dict | None = None) -> list[dict]:
+def _paginate(token: str, url: str, params: Optional[Dict[str, Any]] = None) -> List[dict]:
     """Follow Canvas Link-header pagination and return all results.
 
     Canvas signals the next page via a Link header:
@@ -44,7 +44,7 @@ def _paginate(token: str, url: str, params: dict | None = None) -> list[dict]:
     """
     headers = _build_headers(token)
     results: list[dict] = []
-    next_url: str | None = url
+    next_url: Optional[str] = url
 
     with httpx.Client(timeout=30.0) as client:
         while next_url:
@@ -82,15 +82,15 @@ def get_active_courses(token: str, base_url: str) -> list[dict[str, Any]]:
 def get_assignments_for_course(
     token: str, base_url: str, course_id: int
 ) -> list[dict[str, Any]]:
-    """Return upcoming assignments for a single course.
+    """Return published assignments for a single course.
 
-    Uses bucket=upcoming so Canvas pre-filters to assignments with
-    due_at >= now, reducing payload for students with many past submissions.
-    Assignments without due dates are excluded server-side by this filter.
+    We intentionally do **not** pass ``bucket=upcoming``: Canvas often applies a
+    short horizon (roughly one week), which made \"weeks to fetch\" in AutoPlanner
+    ineffective. We fetch published assignments ordered by due date and filter by
+    date window in ``processor.py`` instead.
     """
     url = f"{base_url.rstrip('/')}/api/v1/courses/{course_id}/assignments"
     params = {
-        "bucket": "upcoming",
         "order_by": "due_at",
         "per_page": 100,
     }
@@ -106,10 +106,11 @@ def get_assignments_for_course(
 def get_all_assignments(
     token: str, base_url: str
 ) -> list[tuple[dict[str, Any], str]]:
-    """Aggregate upcoming assignments from all active courses.
+    """Aggregate assignments from all active student courses.
 
     Returns a list of (assignment_dict, course_name) tuples so the processor
-    does not need to re-join on course ID.
+    does not need to re-join on course ID. Date filtering happens in
+    ``processor.py``.
     """
     courses = get_active_courses(token, base_url)
     all_assignments: list[tuple[dict[str, Any], str]] = []
@@ -122,3 +123,12 @@ def get_all_assignments(
             all_assignments.append((assignment, course_name))
 
     return all_assignments
+
+
+def get_self_profile(token: str, base_url: str) -> dict[str, Any]:
+    """Return the Canvas user profile for the API token (student display name, etc.)."""
+    url = f"{base_url.rstrip('/')}/api/v1/users/self/profile"
+    with httpx.Client(timeout=30.0) as client:
+        response = client.get(url, headers=_build_headers(token))
+        response.raise_for_status()
+        return response.json()
