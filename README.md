@@ -1,3 +1,23 @@
+> # ⚠️ This repository is archived
+>
+> On **2026-09-18** the Civic AI Club monorepo was split into one repository per project, with full history preserved. **Nothing new goes here.** Clone the repository for your case instead:
+>
+> | Old path in this repo | New repository |
+> |---|---|
+> | `projects/case-a-clc-workflow/` | https://github.com/CivicAIClub/case-a-clc-workflow |
+> | `projects/case-b-music-studio/` | https://github.com/CivicAIClub/case-b-music-studio |
+> | `projects/case-c-dei-timeline/` | https://github.com/CivicAIClub/case-c-dei-timeline |
+> | `projects/case-d-roster-export/` | https://github.com/CivicAIClub/case-d-roster-export |
+> | `docs/` (developer onboarding guide) | https://github.com/CivicAIClub/docs |
+> | root `README.md` (club overview) | https://github.com/CivicAIClub/.github (organization profile) |
+> | `shared/` | dropped (it only ever held a placeholder README) |
+>
+> Branch naming is now `feature/`, `fix/`, `chore/` inside each repo; the `case-x/` prefix is retired. Old GitHub Pages URLs under `civicaiclub.github.io/Civic-AI-Github-Repository/` redirect to the new sites. Start with the [Developer Onboarding Guide](https://github.com/CivicAIClub/docs/blob/main/developer-onboarding.md).
+>
+> Everything below is the README as it was at the time of the split, kept for reference.
+
+---
+
 # Civic AI Club — Pomfret School
 
 A student-run technology and development lab that builds AI-powered solutions for real-world productivity problems at Pomfret School and beyond.
